@@ -387,6 +387,12 @@ def edit_layout(layout_key):
             filename = secure_filename(f'{name}.png')
             logo_path = os.path.join(LOGO_FOLDER, filename)
             logo_file.save(logo_path)
+        # Font-Upload
+        font_file = request.files.get('font_file')
+        if font_file and font_file.filename:
+            font_filename = secure_filename(font_file.filename)
+            font_path = os.path.join(FONTS_FOLDER, font_filename)
+            font_file.save(font_path)
         layouts[name] = {
             'watermark_text': watermark_text,
             'text_color': text_color,
