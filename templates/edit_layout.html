@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Layout bearbeiten</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        .logo-thumb { max-width: 80px; max-height: 80px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2 class="mb-4 text-center">Layout bearbeiten</h2>
+    <form method="post" enctype="multipart/form-data" class="card">
+        <!-- Block: Allgemein -->
+        <div class="mb-4 p-3 border rounded bg-light-subtle">
+            <h5 class="mb-3">Allgemein</h5>
+            <div class="mb-3">
+                <label for="name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ layout_key if layout_key=='NEU' else layout_key }}" {% if layout_key != 'NEU' %}readonly{% endif %} required>
+            </div>
+            <div class="mb-3">
+                <label for="logo_file" class="form-label">Logo (PNG, optional)</label>
+                <input type="file" class="form-control" id="logo_file" name="logo_file" accept="image/png">
+                {% if layout.logo_file %}
+                    <div class="mt-2"><img src="/{{ layout.logo_file }}" class="logo-thumb"></div>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Block: Text -->
+        <div class="mb-4 p-3 border rounded bg-light-subtle">
+            <h5 class="mb-3">Text</h5>
+            <div class="mb-3">
+                <label for="font" class="form-label">Schriftart</label>
+                <select class="form-select" id="font" name="font">
+                    {% for font in fonts %}
+                        <option value="{{ font }}" {% if layout.font==font %}selected{% endif %}>{{ font }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="text_color" class="form-label">Textfarbe</label>
+                <input type="color" class="form-control form-control-color" id="text_color" name="text_color" value="{{ layout.text_color|default('#ff72bd') }}">
+            </div>
+            <div class="mb-3">
+                <label for="letter_spacing" class="form-label">Buchstabenabstand (Letter-Spacing)</label>
+                <input type="number" class="form-control" id="letter_spacing" name="letter_spacing" value="{{ layout.letter_spacing|default(-2) }}" step="1">
+                <div class="form-text">Negativ = enger, Positiv = weiter. Standard: -2</div>
+            </div>
+            <div class="mb-3">
+                <label for="line_spacing" class="form-label">Zeilenabstand (Line-Spacing)</label>
+                <input type="number" class="form-control" id="line_spacing" name="line_spacing" value="{{ layout.line_spacing|default(-11) }}" step="1">
+                <div class="form-text">Negativ = enger, Positiv = weiter. Standard: -11</div>
+            </div>
+            <!-- Schatten-Konfiguration -->
+            <div class="mb-3 row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label for="shadow_color" class="form-label">Schattenfarbe</label>
+                    <input type="color" class="form-control form-control-color" id="shadow_color" name="shadow_color" value="{{ layout.shadow_color|default('#000000') }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="shadow_opacity" class="form-label">Deckkraft</label>
+                    <input type="number" class="form-control" id="shadow_opacity" name="shadow_opacity" min="0" max="255" value="{{ layout.shadow_opacity|default(180) }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="shadow_offset_x" class="form-label">Versatz X</label>
+                    <input type="number" class="form-control" id="shadow_offset_x" name="shadow_offset_x" value="{{ layout.shadow_offset_x|default(3) }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="shadow_offset_y" class="form-label">Versatz Y</label>
+                    <input type="number" class="form-control" id="shadow_offset_y" name="shadow_offset_y" value="{{ layout.shadow_offset_y|default(3) }}">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Schrift-Vorschau</label>
+                <div id="font-preview" style="font-family: 'Inter', Arial, sans-serif; font-size: 2rem; letter-spacing: 0px; line-height: 1.2; text-shadow: 2px 2px 6px #00000033; background: #f4f6f8; padding: 1.2rem; border-radius: 10px; margin-bottom: 0.5rem;">
+                    Beispieltext mit Umlauten ÄÖÜ und ß
+                </div>
+                <div class="form-text">
+                    Hinweis: Die Vorschau verwendet eine Standard-Webschrift. Bei der echten Bildgenerierung wird die ausgewählte Schriftart aus dem Server-Fonts-Ordner verwendet.
+                </div>
+            </div>
+            <script>
+            // Vorschau-Logik für Letter-Spacing, Line-Spacing, Schatten
+            function updateFontPreview() {
+                const preview = document.getElementById('font-preview');
+                const letterSpacing = document.getElementById('letter_spacing').value;
+                const lineSpacing = document.getElementById('line_spacing').value;
+                const shadowColor = document.getElementById('shadow_color').value;
+                const shadowOpacity = document.getElementById('shadow_opacity').value;
+                const shadowOffsetX = document.getElementById('shadow_offset_x').value;
+                const shadowOffsetY = document.getElementById('shadow_offset_y').value;
+                // Schattenfarbe + Deckkraft zu rgba
+                function hexToRgba(hex, alpha) {
+                    hex = hex.replace('#', '');
+                    const r = parseInt(hex.substring(0,2), 16);
+                    const g = parseInt(hex.substring(2,4), 16);
+                    const b = parseInt(hex.substring(4,6), 16);
+                    return `rgba(${r},${g},${b},${(alpha/255).toFixed(2)})`;
+                }
+                preview.style.letterSpacing = letterSpacing + 'px';
+                preview.style.lineHeight = (1.2 + (parseInt(lineSpacing) / 30)).toString();
+                preview.style.textShadow = `${shadowOffsetX}px ${shadowOffsetY}px 6px ${hexToRgba(shadowColor, shadowOpacity)}`;
+            }
+            document.getElementById('letter_spacing').addEventListener('input', updateFontPreview);
+            document.getElementById('line_spacing').addEventListener('input', updateFontPreview);
+            document.getElementById('shadow_color').addEventListener('input', updateFontPreview);
+            document.getElementById('shadow_opacity').addEventListener('input', updateFontPreview);
+            document.getElementById('shadow_offset_x').addEventListener('input', updateFontPreview);
+            document.getElementById('shadow_offset_y').addEventListener('input', updateFontPreview);
+            window.addEventListener('DOMContentLoaded', updateFontPreview);
+            </script>
+        </div>
+        <!-- Block: Wasserzeichen -->
+        <div class="mb-4 p-3 border rounded bg-light-subtle">
+            <h5 class="mb-3">Wasserzeichen</h5>
+            <div class="mb-3">
+                <label for="watermark_text" class="form-label">Wasserzeichen-Text</label>
+                <input type="text" class="form-control" id="watermark_text" name="watermark_text" value="{{ layout.watermark_text|default('') }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="watermark_color" class="form-label">Balkenfarbe</label>
+                <input type="color" class="form-control form-control-color" id="watermark_color" name="watermark_color" value="{{ layout.watermark_color|default('#0078ff') }}">
+            </div>
+        </div>
+        <!-- Block: Overlay -->
+        <div class="mb-4 p-3 border rounded bg-light-subtle">
+            <h5 class="mb-3">Overlay</h5>
+            <div class="mb-3">
+                <label for="opacity" class="form-label">Deckkraft der dunklen Ebene</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="range" class="form-range" id="opacity_slider" min="0" max="100" step="1" value="{{ (layout.opacity*100)|default(60, true)|int }}">
+                    <input type="number" class="form-control" id="opacity_input" name="opacity" min="0" max="100" step="1" value="{{ (layout.opacity*100)|default(60, true)|int }}">
+                    <span>%</span>
+                </div>
+                <div class="form-text">0% = durchsichtig, 100% = komplett dunkel. Empfohlen: 60%</div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-success w-100">Speichern</button>
+    </form>
+    <div class="mt-4 text-center">
+        <a href="{{ url_for('admin') }}">Zurück zur Übersicht</a>
+    </div>
+</div>
+</body>
+</html> 
