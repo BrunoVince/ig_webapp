@@ -8,7 +8,7 @@ import glob
 import uuid
 import datetime
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash, jsonify
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ExifTags
 from werkzeug.utils import secure_filename
 
 try:
@@ -104,6 +104,32 @@ def get_available_fonts():
         fonts.extend([os.path.basename(f) for f in glob.glob(os.path.join(FONTS_FOLDER, ext))])
     return sorted(fonts)
 
+def fix_image_orientation(img):
+    try:
+        for orientation in ExifTags.TAGS.keys():
+            if ExifTags.TAGS[orientation] == 'Orientation':
+                break
+        exif = img._getexif()
+        if exif is not None:
+            orientation = exif.get(orientation, None)
+            if orientation == 3:
+                img = img.rotate(180, expand=True)
+            elif orientation == 6:
+                img = img.rotate(270, expand=True)
+            elif orientation == 8:
+                img = img.rotate(90, expand=True)
+    except Exception:
+        pass
+    return img
+
+def crop_center_square(img):
+    side = min(img.width, img.height)
+    left = (img.width - side) // 2
+    top = (img.height - side) // 2
+    right = left + side
+    bottom = top + side
+    return img.crop((left, top, right, bottom))
+
 def create_image_with_text_and_watermark(background_path, text, layout_key):
     layouts = load_layouts()
     layout = layouts[layout_key]
@@ -122,7 +148,11 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     shadow_offset_x = int(layout.get('shadow_offset_x', 3))
     shadow_offset_y = int(layout.get('shadow_offset_y', 3))
     watermark_margin_bottom = int(layout.get('watermark_margin_bottom', 40))
-    img = Image.open(background_path).convert("RGB")
+    img = Image.open(background_path)
+    img = fix_image_orientation(img)
+    img = crop_center_square(img)
+    img = img.resize((1080, 1080), Image.LANCZOS)
+    img = img.convert("RGB")
     width, height = img.size
     overlay = Image.new('RGBA', (width, height), (0, 0, 0, int(255 * opacity)))
     img = img.convert("RGBA")
@@ -184,27 +214,23 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
                 for seg_text, seg_color in segs:
                     words = seg_text.split(' ')
                     for i, word in enumerate(words):
-                        if i < len(words) - 1:
-                            word += ' '
-                        # Wortbreite inkl. Letter-Spacing berechnen
-                        word_width = sum(font.getlength(c) for c in word)
-                        if len(word) > 1:
-                            word_width += (len(word)-1) * letter_spacing
-                        # Not-Umbruch für sehr lange Wörter
+                        is_last = (i == len(words) - 1)
+                        word_with_space = word if is_last else word + ' '
+                        word_width = font.getlength(word_with_space)
                         if word_width > max_text_width:
-                            # Zeichenweise umbrechen
+                            # Wort ist zu lang, Zeichenweise umbrechen (ohne Leerzeichen)
                             part = ''
                             part_width = 0
                             for char in word:
                                 char_width = font.getlength(char)
-                                if part and part_width + char_width + letter_spacing > max_text_width:
+                                if part and part_width + char_width > max_text_width:
                                     line.append((part, seg_color))
                                     lines.append(line)
                                     line = []
                                     part = ''
                                     part_width = 0
                                 part += char
-                                part_width += char_width + letter_spacing
+                                part_width += char_width
                             if part:
                                 line.append((part, seg_color))
                                 current_width = part_width
@@ -213,7 +239,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
                                 lines.append(line)
                                 line = []
                                 current_width = 0
-                            line.append((word, seg_color))
+                            line.append((word_with_space, seg_color))
                             current_width += word_width
                 if line:
                     lines.append(line)
@@ -270,7 +296,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
         line_width = 0
         for word, _ in line:
             line_width += sum(optimal_font.getlength(c) + letter_spacing for c in word) - (letter_spacing if word else 0)
-        x = (width - line_width) // 2
+        x = margin + (max_text_width - line_width) // 2
         shadow_rgba = hex_to_rgb(shadow_color) + (shadow_opacity,)
         for word, color in line:
             for i, char in enumerate(word):
@@ -304,7 +330,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
               font=watermark_font, 
               fill=watermark_font_color + (255,))
     output = io.BytesIO()
-    img.save(output, format="JPEG", quality=95)
+    img.save(output, format="JPEG", quality=100, subsampling=0)
     output.seek(0)
     return output
 
