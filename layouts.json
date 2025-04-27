@@ -11,7 +11,11 @@
     "shadow_color": "#000000",
     "shadow_opacity": 180,
     "shadow_offset_x": 3,
-    "shadow_offset_y": 3
+    "shadow_offset_y": 3,
+    "watermark_margin_bottom": 40,
+    "watermark_font_color": "#ffffff",
+    "watermark_font": "GeezaPro-Bold.ttf",
+    "watermark_font_size_percent": 4.5
   },
   "MADCHENF4KTEN": {
     "watermark_text": "MADCHENF4KTEN",
@@ -25,7 +29,11 @@
     "shadow_color": "#000000",
     "shadow_opacity": 180,
     "shadow_offset_x": 3,
-    "shadow_offset_y": 3
+    "shadow_offset_y": 3,
+    "watermark_margin_bottom": 40,
+    "watermark_font_color": "#ffffff",
+    "watermark_font": "GeezaPro-Bold.ttf",
+    "watermark_font_size_percent": 4.5
   },
   "LIEBESAKTFAKTEN": {
     "watermark_text": "LIEBESAKTFAKTEN",
@@ -39,7 +47,11 @@
     "shadow_color": "#000000",
     "shadow_opacity": 180,
     "shadow_offset_x": 3,
-    "shadow_offset_y": 3
+    "shadow_offset_y": 3,
+    "watermark_margin_bottom": 40,
+    "watermark_font_color": "#ffffff",
+    "watermark_font": "GeezaPro-Bold.ttf",
+    "watermark_font_size_percent": 4.5
   },
   "BINBETRUNKEN": {
     "watermark_text": "BINBETRUNKEN",
@@ -53,7 +65,11 @@
     "shadow_color": "#000000",
     "shadow_opacity": 180,
     "shadow_offset_x": 3,
-    "shadow_offset_y": 3
+    "shadow_offset_y": 3,
+    "watermark_margin_bottom": 40,
+    "watermark_font_color": "#ffffff",
+    "watermark_font": "GeezaPro-Bold.ttf",
+    "watermark_font_size_percent": 4.5
   },
   "GESCHLECHTS.FAKTEN": {
     "watermark_text": "GESCHLECHTS.FAKTEN",
@@ -67,7 +83,11 @@
     "shadow_color": "#000000",
     "shadow_opacity": 180,
     "shadow_offset_x": 3,
-    "shadow_offset_y": 3
+    "shadow_offset_y": 3,
+    "watermark_margin_bottom": 40,
+    "watermark_font_color": "#ffffff",
+    "watermark_font": "GeezaPro-Bold.ttf",
+    "watermark_font_size_percent": 4.5
   },
   "DOKTORSPIELFAKTEN": {
     "watermark_text": "DOKTORSPIELFAKTEN",
@@ -81,6 +101,10 @@
     "shadow_color": "#000000",
     "shadow_opacity": 180,
     "shadow_offset_x": 3,
-    "shadow_offset_y": 3
+    "shadow_offset_y": 3,
+    "watermark_margin_bottom": 40,
+    "watermark_font_color": "#ffffff",
+    "watermark_font": "Roboto-ExtraBold.ttf",
+    "watermark_font_size_percent": 4.5
   }
 }

@@ -37,13 +37,16 @@
                 <label for="font" class="form-label">Schriftart</label>
                 <select class="form-select" id="font" name="font">
                     {% for font in fonts %}
-                        <option value="{{ font }}" {% if layout.font==font %}selected{% endif %}>{{ font }}</option>
+                        <option value="{{ font }}" {% if layout.font|default('GeezaPro-Bold.ttf')==font %}selected{% endif %}>{{ font }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="mb-3">
                 <label for="text_color" class="form-label">Textfarbe</label>
-                <input type="color" class="form-control form-control-color" id="text_color" name="text_color" value="{{ layout.text_color|default('#ff72bd') }}">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" class="form-control form-control-color" id="text_color" name="text_color" value="{{ layout.text_color|default('#ff72bd') }}">
+                    <input type="text" class="form-control" id="text_color_hex" value="{{ layout.text_color|default('#ff72bd') }}" maxlength="7" style="width:110px;">
+                </div>
             </div>
             <div class="mb-3">
                 <label for="letter_spacing" class="form-label">Buchstabenabstand (Letter-Spacing)</label>
@@ -59,7 +62,10 @@
             <div class="mb-3 row g-2 align-items-end">
                 <div class="col-md-4">
                     <label for="shadow_color" class="form-label">Schattenfarbe</label>
-                    <input type="color" class="form-control form-control-color" id="shadow_color" name="shadow_color" value="{{ layout.shadow_color|default('#000000') }}">
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="color" class="form-control form-control-color" id="shadow_color" name="shadow_color" value="{{ layout.shadow_color|default('#000000') }}">
+                        <input type="text" class="form-control" id="shadow_color_hex" value="{{ layout.shadow_color|default('#000000') }}" maxlength="7" style="width:110px;">
+                    </div>
                 </div>
                 <div class="col-md-4">
                     <label for="shadow_opacity" class="form-label">Deckkraft</label>
@@ -123,7 +129,35 @@
             </div>
             <div class="mb-3">
                 <label for="watermark_color" class="form-label">Balkenfarbe</label>
-                <input type="color" class="form-control form-control-color" id="watermark_color" name="watermark_color" value="{{ layout.watermark_color|default('#0078ff') }}">
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" class="form-control form-control-color" id="watermark_color" name="watermark_color" value="{{ layout.watermark_color|default('#0078ff') }}">
+                    <input type="text" class="form-control" id="watermark_color_hex" value="{{ layout.watermark_color|default('#0078ff') }}" maxlength="7" style="width:110px;">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="watermark_margin_bottom" class="form-label">Abstand zum unteren Rand (Balken)</label>
+                <input type="number" class="form-control" id="watermark_margin_bottom" name="watermark_margin_bottom" min="0" max="500" value="{{ layout.watermark_margin_bottom|default(40) }}">
+                <div class="form-text">Steuert den Abstand des Wasserzeichen-Balkens zum unteren Bildrand (in Pixel).</div>
+            </div>
+            <div class="mb-3">
+                <label for="watermark_font_color" class="form-label">Schriftfarbe (Balken)</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" class="form-control form-control-color" id="watermark_font_color" name="watermark_font_color" value="{{ layout.watermark_font_color|default('#ffffff') }}">
+                    <input type="text" class="form-control" id="watermark_font_color_hex" value="{{ layout.watermark_font_color|default('#ffffff') }}" maxlength="7" style="width:110px;">
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="watermark_font" class="form-label">Schriftart (Balken)</label>
+                <select class="form-select" id="watermark_font" name="watermark_font">
+                    {% for font in fonts %}
+                        <option value="{{ font }}" {% if layout.watermark_font|default('GeezaPro-Bold.ttf')==font %}selected{% endif %}>{{ font }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="watermark_font_size_percent" class="form-label">Schriftgröße (Balken, % der Bildbreite)</label>
+                <input type="number" class="form-control" id="watermark_font_size_percent" name="watermark_font_size_percent" min="1" max="20" step="0.1" value="{{ layout.watermark_font_size_percent|default(4.5) }}">
+                <div class="form-text">Empfohlen: 4.5</div>
             </div>
         </div>
         <!-- Block: Overlay -->
@@ -132,13 +166,42 @@
             <div class="mb-3">
                 <label for="opacity" class="form-label">Deckkraft der dunklen Ebene</label>
                 <div class="d-flex align-items-center gap-2">
-                    <input type="range" class="form-range" id="opacity_slider" min="0" max="100" step="1" value="{{ (layout.opacity*100)|default(60, true)|int }}">
-                    <input type="number" class="form-control" id="opacity_input" name="opacity" min="0" max="100" step="1" value="{{ (layout.opacity*100)|default(60, true)|int }}">
-                    <span>%</span>
+                    <input type="range" class="form-range" id="opacity_slider" min="0" max="100" step="1" value="{{ (layout.opacity|default(0.6) * 100)|int }}">
+                    <input type="number" class="form-control" id="opacity_input" name="opacity" min="0" max="100" step="1" value="{{ (layout.opacity|default(0.6) * 100)|int }}"> %
                 </div>
                 <div class="form-text">0% = durchsichtig, 100% = komplett dunkel. Empfohlen: 60%</div>
             </div>
         </div>
+        <script>
+            const slider = document.getElementById('opacity_slider');
+            const input = document.getElementById('opacity_input');
+            function syncOpacity(from) {
+                if(from === 'slider') {
+                    input.value = slider.value;
+                } else {
+                    slider.value = input.value;
+                }
+            }
+            slider.addEventListener('input', function() { syncOpacity('slider'); });
+            input.addEventListener('input', function() { syncOpacity('input'); });
+            window.addEventListener('DOMContentLoaded', function() { syncOpacity('slider'); });
+        </script>
+        <script>
+        function syncColorInputs(colorId) {
+            const colorInput = document.getElementById(colorId);
+            const hexInput = document.getElementById(colorId + '_hex');
+            colorInput.addEventListener('input', () => { hexInput.value = colorInput.value; });
+            hexInput.addEventListener('input', () => {
+                if(/^#([0-9A-Fa-f]{6})$/.test(hexInput.value)) {
+                    colorInput.value = hexInput.value;
+                }
+            });
+        }
+        syncColorInputs('text_color');
+        syncColorInputs('watermark_color');
+        syncColorInputs('shadow_color');
+        syncColorInputs('watermark_font_color');
+        </script>
         <button type="submit" class="btn btn-success w-100">Speichern</button>
     </form>
     <div class="mt-4 text-center">

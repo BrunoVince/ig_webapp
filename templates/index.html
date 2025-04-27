@@ -64,7 +64,7 @@
             <h4 class="mt-2">Ergebnis:</h4>
             <img src="{{result_url}}" class="result-img" alt="Ergebnisbild">
             <div class="mt-3">
-                <a href="{{result_url}}" download="textbild.jpg" class="btn btn-success mb-2">Bild herunterladen</a>
+                <a href="{{result_url}}" download="{{ filename|default('textbild.jpg') }}" class="btn btn-success mb-2">Bild herunterladen</a>
             </div>
             <div class="mb-2">
                 <button id="share-instagram" class="btn btn-primary w-100 d-block d-sm-none" style="display:none;">Jetzt auf Instagram teilen</button>
@@ -86,7 +86,7 @@ if (shareBtn && isMobile() && navigator.canShare) {
         try {
             const response = await fetch('{{result_url}}');
             const blob = await response.blob();
-            const file = new File([blob], 'textbild.jpg', { type: blob.type });
+            const file = new File([blob], '{{ filename|default('textbild.jpg') }}', { type: blob.type });
             await navigator.share({
                 files: [file],
                 title: 'Bild für Instagram',

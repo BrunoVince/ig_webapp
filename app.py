@@ -5,6 +5,7 @@ import re
 import io
 import base64
 import glob
+import uuid
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash
 from PIL import Image, ImageDraw, ImageFont
 from werkzeug.utils import secure_filename
@@ -111,6 +112,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     shadow_opacity = int(layout.get('shadow_opacity', 180))
     shadow_offset_x = int(layout.get('shadow_offset_x', 3))
     shadow_offset_y = int(layout.get('shadow_offset_y', 3))
+    watermark_margin_bottom = int(layout.get('watermark_margin_bottom', 40))
     img = Image.open(background_path).convert("RGB")
     width, height = img.size
     overlay = Image.new('RGBA', (width, height), (0, 0, 0, int(255 * opacity)))
@@ -123,18 +125,20 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     logo_path = layout["logo_file"]
     logo_height = 0
     if os.path.exists(logo_path):
-        logo = Image.open(logo_path).convert("RGBA")
-        logo.thumbnail((120, 120), Image.LANCZOS)
+        logo_size = (120, 120)
+        logo = Image.open(logo_path).convert("RGBA").resize(logo_size, Image.LANCZOS)
         img.paste(logo, (30, 30), logo)
-        logo_height = logo.height
-    watermark_font_size = int(width * 0.045)
+        logo_height = logo_size[1]
+    watermark_font_path = os.path.join(FONTS_FOLDER, layout.get('watermark_font', 'GeezaPro-Bold.ttf'))
+    watermark_font_size = int(width * float(layout.get('watermark_font_size_percent', 4.5)) / 100)
     try:
-        watermark_font = ImageFont.truetype(font_path, watermark_font_size)
+        watermark_font = ImageFont.truetype(watermark_font_path, watermark_font_size)
     except IOError:
         try:
             watermark_font = ImageFont.truetype("Arial.ttf", watermark_font_size)
         except IOError:
             watermark_font = ImageFont.load_default()
+    watermark_font_color = hex_to_rgb(layout.get('watermark_font_color', '#ffffff'))
     watermark_bbox = draw.textbbox((0, 0), watermark['text'], font=watermark_font)
     watermark_height = watermark_bbox[3] - watermark_bbox[1]
     padding_y = int(watermark_height * 0.5)
@@ -279,7 +283,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
         bar_height
     ), watermark['color'])
     watermark_x = (width - watermark_width) // 2
-    bar_y = height - margin // 2 - bar_height // 2
+    bar_y = height - watermark_margin_bottom - bar_height // 2
     background_rect_pos = (
         int(watermark_x - padding_x),
         bar_y
@@ -289,7 +293,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     draw.text((watermark_x, text_y), 
               watermark['text'], 
               font=watermark_font, 
-              fill=(255, 255, 255, 255))
+              fill=watermark_font_color + (255,))
     output = io.BytesIO()
     img.save(output, format="JPEG", quality=95)
     output.seek(0)
@@ -302,6 +306,7 @@ def index():
     result_url = None
     text_value = ''
     layout_value = None
+    filename = None
     layouts = load_layouts()
     is_admin = session.get('is_admin', False)
     if request.method == 'POST':
@@ -320,7 +325,8 @@ def index():
         img_bytes = result_img.getvalue()
         img_b64 = base64.b64encode(img_bytes).decode('utf-8')
         data_url = f"data:image/jpeg;base64,{img_b64}"
-        return render_template('index.html', layouts=layouts, result_url=data_url, text_value=text_value, layout_value=layout_value, is_admin=is_admin)
+        filename = f"textbild_{uuid.uuid4().hex[:8]}.jpg"
+        return render_template('index.html', layouts=layouts, result_url=data_url, text_value=text_value, layout_value=layout_value, is_admin=is_admin, filename=filename)
     return render_template('index.html', layouts=layouts, text_value=text_value, layout_value=layout_value, is_admin=is_admin)
 
 # --- Admin-Login ---
@@ -370,6 +376,10 @@ def edit_layout(layout_key):
         shadow_opacity = int(request.form.get('shadow_opacity', 180))
         shadow_offset_x = int(request.form.get('shadow_offset_x', 3))
         shadow_offset_y = int(request.form.get('shadow_offset_y', 3))
+        watermark_margin_bottom = int(request.form.get('watermark_margin_bottom', 40))
+        watermark_font_color = request.form.get('watermark_font_color', '#ffffff')
+        watermark_font = request.form.get('watermark_font', 'GeezaPro-Bold.ttf')
+        watermark_font_size_percent = float(request.form.get('watermark_font_size_percent', 4.5))
         # Logo-Upload
         logo_file = request.files.get('logo_file')
         logo_path = layout.get('logo_file', f'static/logos/{name}.png')
@@ -389,7 +399,11 @@ def edit_layout(layout_key):
             'shadow_color': shadow_color,
             'shadow_opacity': shadow_opacity,
             'shadow_offset_x': shadow_offset_x,
-            'shadow_offset_y': shadow_offset_y
+            'shadow_offset_y': shadow_offset_y,
+            'watermark_margin_bottom': watermark_margin_bottom,
+            'watermark_font_color': watermark_font_color,
+            'watermark_font': watermark_font,
+            'watermark_font_size_percent': watermark_font_size_percent,
         }
         if layout_key != name and layout_key in layouts:
             del layouts[layout_key]
