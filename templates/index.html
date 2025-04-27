@@ -6,20 +6,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f8f9fa; }
-        body, .container { padding-bottom: max(3.5rem, env(safe-area-inset-bottom)); }
+        :root {
+            --bg: #f8f9fa;
+            --text: #222;
+            --card: #fff;
+            --border: #aaa;
+            --btn-primary: #0d6efd;
+            --btn-success: #198754;
+            --alert-bg: #ffdddd;
+            --alert-text: #a00;
+            --alert-border: #a00;
+        }
+        body[data-theme='dark'] {
+            --bg: #181a1b;
+            --text: #f1f1f1;
+            --card: #23272b;
+            --border: #444;
+            --btn-primary: #375a7f;
+            --btn-success: #00bc8c;
+            --alert-bg: #2a1a1a;
+            --alert-text: #ffb3b3;
+            --alert-border: #a00;
+        }
+        body { background: var(--bg); color: var(--text); }
+        .container { padding-bottom: max(3.5rem, env(safe-area-inset-bottom)); }
         .preview-img { max-width: 100%; max-height: 350px; margin-bottom: 1em; border-radius: 8px; }
-        .result-img { max-width: 100%; border: 3px solid #aaa; border-radius: 8px; margin-top: 1em; }
+        .result-img { max-width: 100%; border: 3px solid var(--border); border-radius: 8px; margin-top: 1em; }
         .layout-btn { margin: 0.2em 0; width: 100%; }
         @media (min-width: 576px) {
             .layout-btn { width: auto; margin: 0.2em; }
         }
         .btn, .form-control, textarea { font-size: 1.1em; }
-        .btn-success, .btn-primary { width: 100%; margin-bottom: 0.5em; }
+        .btn-success { width: 100%; margin-bottom: 0.5em; background: var(--btn-success); border: none; }
+        .btn-primary { width: 100%; margin-bottom: 0.5em; background: var(--btn-primary); border: none; }
         .form-label { font-weight: 500; }
         .mb-3 { margin-bottom: 1.2em !important; }
-        .card { border-radius: 14px; }
+        .card { border-radius: 14px; background: var(--card); color: var(--text); }
         .layout-btn { min-width: 120px; }
+        .alert { background: var(--alert-bg); color: var(--alert-text); border: 1px solid var(--alert-border); }
+        body[data-theme='dark'] .form-control, 
+        body[data-theme='dark'] textarea {
+            background: #23272b;
+            color: #f1f1f1;
+            border-color: #444;
+        }
+        body[data-theme='dark'] .form-control::placeholder {
+            color: #aaa;
+        }
+        body[data-theme='dark'] .layout-btn {
+            background: #23272b;
+            color: #f1f1f1;
+            border-color: #444;
+        }
     </style>
 </head>
 <body>
@@ -27,7 +65,8 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="mb-4 text-center">Text auf Bild – WebApp</h2>
-        <div>
+        <div class="d-flex align-items-center gap-2">
+            <button id="darkmode-toggle" class="btn btn-outline-secondary btn-sm" title="Darkmode umschalten" type="button">🌙</button>
             {% if is_admin %}
                 <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary btn-sm">Admin</a>
                 <a href="{{ url_for('admin_logout') }}" class="btn btn-outline-danger btn-sm ms-2">Logout</a>
@@ -40,6 +79,7 @@
         <div class="mb-3">
             <label for="image" class="form-label">Bild hochladen</label>
             <input class="form-control" type="file" id="image" name="image" accept="image/*" required>
+            <div id="image-preview" class="mb-3"></div>
         </div>
         <div class="mb-3">
             <label for="text" class="form-label">Text</label>
@@ -47,7 +87,7 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Layout wählen</label>
-            <div class="d-flex flex-column flex-sm-row flex-wrap gap-2">
+            <div class="layout-btn-group d-flex flex-column flex-sm-row flex-wrap gap-2">
             {% for key, layout in layouts.items() %}
                 <input type="radio" class="btn-check" name="layout" id="layout-{{key}}" value="{{key}}" autocomplete="off" {% if layout_value==key or (not layout_value and loop.first) %}checked{% endif %}>
                 <label class="btn layout-btn" for="layout-{{key}}">{{key}}</label>
@@ -67,36 +107,13 @@
                 <a href="{{result_url}}" download="{{ filename|default('textbild.jpg') }}" class="btn btn-success mb-2">Bild herunterladen</a>
             </div>
             <div class="mb-2">
-                <button id="share-instagram" class="btn btn-primary w-100 d-block d-sm-none" style="display:none;">Jetzt auf Instagram teilen</button>
+                <button id="share-instagram" class="btn btn-primary w-100 d-block d-sm-none" style="display:none;" data-result-url="{{result_url}}" data-filename="{{ filename|default('textbild.jpg') }}">Jetzt auf Instagram teilen</button>
             </div>
         </div>
     {% endif %}
 </div>
 <!-- MODERN DESIGN ENDE -->
-<script>
-// Button nur auf mobilen Geräten anzeigen
-function isMobile() {
-    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
-}
-const shareBtn = document.getElementById('share-instagram');
-if (shareBtn && isMobile() && navigator.canShare) {
-    shareBtn.style.display = 'block';
-    shareBtn.addEventListener('click', async function(e) {
-        e.preventDefault();
-        try {
-            const response = await fetch('{{result_url}}');
-            const blob = await response.blob();
-            const file = new File([blob], '{{ filename|default('textbild.jpg') }}', { type: blob.type });
-            await navigator.share({
-                files: [file],
-                title: 'Bild für Instagram',
-                text: 'Hier ist mein neues Bild!'
-            });
-        } catch (err) {
-            alert('Teilen nicht möglich. Bitte Bild herunterladen und manuell posten.');
-        }
-    });
-}
-</script>
+<script src="{{ url_for('static', filename='main.js') }}"></script>
+<script id="layout-data" type="application/json">{{ layouts|tojson }}</script>
 </body>
 </html> 

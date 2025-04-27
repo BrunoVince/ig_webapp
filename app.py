@@ -6,9 +6,17 @@ import io
 import base64
 import glob
 import uuid
-from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash
+import datetime
+from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash, jsonify
 from PIL import Image, ImageDraw, ImageFont
 from werkzeug.utils import secure_filename
+
+try:
+    import google.generativeai as genai
+    genai.configure(api_key="<DEIN_GEMINI_API_KEY>")  # <-- Platzhalter
+    GEMINI_AVAILABLE = False  # Feature-Flag deaktiviert
+except ImportError:
+    GEMINI_AVAILABLE = False
 
 app = Flask(__name__)
 app.secret_key = 'supersecretkey'  # Für Session, ggf. anpassen
@@ -16,6 +24,7 @@ ADMIN_PASSWORD = 'Instagram2025'
 LAYOUTS_FILE = 'layouts.json'
 LOGO_FOLDER = 'static/logos/'
 FONTS_FOLDER = os.path.join(os.path.dirname(__file__), 'fonts')
+SHOW_CAPTION_FEATURE = True
 
 # Layout-Konfiguration (wie im Bot)
 LAYOUTS = {
@@ -307,17 +316,19 @@ def index():
     text_value = ''
     layout_value = None
     filename = None
+    caption_value = ''
     layouts = load_layouts()
     is_admin = session.get('is_admin', False)
     if request.method == 'POST':
         text = request.form['text']
         text = clean_text(text)
         layout = request.form['layout']
+        caption_value = request.form.get('caption', '')
         file = request.files['image']
         text_value = text
         layout_value = layout
         if not file:
-            return render_template('index.html', layouts=layouts, error="Bitte ein Bild hochladen.", text_value=text_value, layout_value=layout_value, is_admin=is_admin)
+            return render_template('index.html', layouts=layouts, error="Bitte ein Bild hochladen.", text_value=text_value, layout_value=layout_value, is_admin=is_admin, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value)
         img_path = os.path.join('static', 'tmp_upload.jpg')
         file.save(img_path)
         result_img = create_image_with_text_and_watermark(img_path, text, layout)
@@ -325,9 +336,32 @@ def index():
         img_bytes = result_img.getvalue()
         img_b64 = base64.b64encode(img_bytes).decode('utf-8')
         data_url = f"data:image/jpeg;base64,{img_b64}"
-        filename = f"textbild_{uuid.uuid4().hex[:8]}.jpg"
-        return render_template('index.html', layouts=layouts, result_url=data_url, text_value=text_value, layout_value=layout_value, is_admin=is_admin, filename=filename)
-    return render_template('index.html', layouts=layouts, text_value=text_value, layout_value=layout_value, is_admin=is_admin)
+        # Dateiname mit Layout und Zeitstempel
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        filename = f"{layout}_{timestamp}.jpg"
+        return render_template('index.html', layouts=layouts, result_url=data_url, text_value=text_value, layout_value=layout_value, is_admin=is_admin, filename=filename, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value)
+    return render_template('index.html', layouts=layouts, text_value=text_value, layout_value=layout_value, is_admin=is_admin, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value)
+
+# Dummy-Route für Caption-Generierung (hier später Gemini/OpenAI einbauen)
+@app.route('/generate_caption', methods=['POST'])
+def generate_caption():
+    if not SHOW_CAPTION_FEATURE:
+        return jsonify({'caption': 'Feature deaktiviert.'}), 403
+    
+    data = request.get_json()
+    text = data.get('text', '')
+    
+    if not GEMINI_AVAILABLE:
+        return jsonify({'caption': 'Feature deaktiviert.'})
+        
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        prompt = f"Schreibe eine kreative, kurze Instagram-Caption auf Deutsch für folgenden Bildtext:\n\n{text}\n\nCaption:"
+        response = model.generate_content(prompt)
+        caption = response.text.strip()
+        return jsonify({'caption': caption})
+    except Exception as e:
+        return jsonify({'caption': f"Fehler bei der Caption-Generierung: {str(e)}"})
 
 # --- Admin-Login ---
 @app.route('/admin/login', methods=['GET', 'POST'])
