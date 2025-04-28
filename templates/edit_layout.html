@@ -34,6 +34,11 @@
                 <input type="file" class="form-control" id="font_file" name="font_file" accept=".ttf,.otf">
                 <div class="form-text">Nach dem Hochladen steht die Schriftart in allen Dropdowns zur Verfügung.</div>
             </div>
+            <div class="mb-3">
+                <label for="logo_size" class="form-label">Logogröße (Pixel)</label>
+                <input type="number" class="form-control" id="logo_size" name="logo_size" min="20" max="400" value="{{ layout.logo_size|default(120) }}">
+                <div class="form-text">Standard: 120. Gilt für die Kantenlänge (quadratisch).</div>
+            </div>
         </div>
         <!-- Block: Text -->
         <div class="mb-4 p-3 border rounded bg-light-subtle">

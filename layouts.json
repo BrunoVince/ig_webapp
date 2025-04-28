@@ -16,7 +16,8 @@
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
     "watermark_font_size_percent": 4.5,
-    "max_font_size_percent": 15.0
+    "max_font_size_percent": 15.0,
+    "logo_size": 120
   },
   "MADCHENF4KTEN": {
     "watermark_text": "MADCHENF4KTEN",
@@ -35,7 +36,8 @@
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
     "watermark_font_size_percent": 4.5,
-    "max_font_size_percent": 15.0
+    "max_font_size_percent": 15.0,
+    "logo_size": 120
   },
   "LIEBESAKTFAKTEN": {
     "watermark_text": "LIEBESAKTFAKTEN",
@@ -54,7 +56,8 @@
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
     "watermark_font_size_percent": 4.5,
-    "max_font_size_percent": 15.0
+    "max_font_size_percent": 15.0,
+    "logo_size": 120
   },
   "BINBETRUNKEN": {
     "watermark_text": "BINBETRUNKEN",
@@ -73,7 +76,8 @@
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
     "watermark_font_size_percent": 4.5,
-    "max_font_size_percent": 15.0
+    "max_font_size_percent": 15.0,
+    "logo_size": 120
   },
   "GESCHLECHTS.FAKTEN": {
     "watermark_text": "GESCHLECHTS.FAKTEN",
@@ -92,7 +96,8 @@
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
     "watermark_font_size_percent": 4.5,
-    "max_font_size_percent": 15.0
+    "max_font_size_percent": 15.0,
+    "logo_size": 120
   },
   "DOKTORSPIELFAKTEN": {
     "watermark_text": "DOKTORSPIELFAKTEN",
@@ -112,6 +117,7 @@
     "watermark_font": "Roboto-ExtraBold.ttf",
     "watermark_font_size_percent": 4.5,
     "max_font_size_mode": "pixel",
-    "max_font_size_value": 60.0
+    "max_font_size_value": 60.0,
+    "logo_size": 120
   }
 }

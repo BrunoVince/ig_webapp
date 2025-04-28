@@ -162,12 +162,12 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     margin = int(min(width, height) * 0.1)
     max_text_width = width - 2 * margin
     logo_path = layout["logo_file"]
+    logo_size_val = int(layout.get('logo_size', 120))
     logo_height = 0
     if os.path.exists(logo_path):
-        logo_size = (120, 120)
-        logo = Image.open(logo_path).convert("RGBA").resize(logo_size, Image.LANCZOS)
+        logo = Image.open(logo_path).convert("RGBA").resize((logo_size_val, logo_size_val), Image.LANCZOS)
         img.paste(logo, (30, 30), logo)
-        logo_height = logo_size[1]
+        logo_height = logo_size_val
     watermark_font_path = os.path.join(FONTS_FOLDER, layout.get('watermark_font', 'GeezaPro-Bold.ttf'))
     watermark_font_size = int(width * float(layout.get('watermark_font_size_percent', 4.5)) / 100)
     try:
@@ -481,6 +481,7 @@ def edit_layout(layout_key):
             'watermark_font_size_percent': watermark_font_size_percent,
             'max_font_size_mode': max_font_size_mode,
             'max_font_size_value': max_font_size_value,
+            'logo_size': int(request.form.get('logo_size', 120)),
         }
         if layout_key != name and layout_key in layouts:
             del layouts[layout_key]
@@ -499,6 +500,31 @@ def delete_layout(layout_key):
         del layouts[layout_key]
         save_layouts(layouts)
         flash('Layout gelöscht.', 'info')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/export_layouts')
+def export_layouts():
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+    return send_file(LAYOUTS_FILE, as_attachment=True, download_name='layouts.json', mimetype='application/json')
+
+@app.route('/admin/import_layouts', methods=['POST'])
+def import_layouts():
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+    file = request.files.get('import_file')
+    if not file:
+        flash('Keine Datei ausgewählt!', 'danger')
+        return redirect(url_for('admin'))
+    try:
+        data = json.load(file)
+        # Optional: Validierung der Struktur
+        if not isinstance(data, dict):
+            raise ValueError('Ungültiges Layout-Format!')
+        save_layouts(data)
+        flash('Layouts erfolgreich importiert.', 'success')
+    except Exception as e:
+        flash(f'Fehler beim Import: {e}', 'danger')
     return redirect(url_for('admin'))
 
 if __name__ == '__main__':
