@@ -1,7 +1,7 @@
 {
   "JUNGSF4KTEN": {
     "watermark_text": "JUNGSF4KTEN",
-    "text_color": "#ff72bd",
+    "text_color": "#0F93B2",
     "logo_file": "static/logos/JUNGSF4KTEN.png",
     "watermark_color": "#0078ff",
     "opacity": 0.6,
@@ -15,11 +15,12 @@
     "watermark_margin_bottom": 40,
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
-    "watermark_font_size_percent": 4.5
+    "watermark_font_size_percent": 4.5,
+    "max_font_size_percent": 15.0
   },
   "MADCHENF4KTEN": {
     "watermark_text": "MADCHENF4KTEN",
-    "text_color": "#ff72bd",
+    "text_color": "#E01616",
     "logo_file": "static/logos/MADCHENF4KTEN.png",
     "watermark_color": "#ff3232",
     "opacity": 0.6,
@@ -33,11 +34,12 @@
     "watermark_margin_bottom": 40,
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
-    "watermark_font_size_percent": 4.5
+    "watermark_font_size_percent": 4.5,
+    "max_font_size_percent": 15.0
   },
   "LIEBESAKTFAKTEN": {
     "watermark_text": "LIEBESAKTFAKTEN",
-    "text_color": "#ff72bd",
+    "text_color": "#C651E5",
     "logo_file": "static/logos/LIEBESAKTFAKTEN.png",
     "watermark_color": "#9300d3",
     "opacity": 0.6,
@@ -51,11 +53,12 @@
     "watermark_margin_bottom": 40,
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
-    "watermark_font_size_percent": 4.5
+    "watermark_font_size_percent": 4.5,
+    "max_font_size_percent": 15.0
   },
   "BINBETRUNKEN": {
     "watermark_text": "BINBETRUNKEN",
-    "text_color": "#ff72bd",
+    "text_color": "#FFFF51",
     "logo_file": "static/logos/BINBETRUNKEN.png",
     "watermark_color": "#ff3232",
     "opacity": 0.6,
@@ -69,11 +72,12 @@
     "watermark_margin_bottom": 40,
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
-    "watermark_font_size_percent": 4.5
+    "watermark_font_size_percent": 4.5,
+    "max_font_size_percent": 15.0
   },
   "GESCHLECHTS.FAKTEN": {
     "watermark_text": "GESCHLECHTS.FAKTEN",
-    "text_color": "#ff72bd",
+    "text_color": "#C651E5",
     "logo_file": "static/logos/GESCHLECHTS.FAKTEN.png",
     "watermark_color": "#0078ff",
     "opacity": 0.6,
@@ -87,11 +91,12 @@
     "watermark_margin_bottom": 40,
     "watermark_font_color": "#ffffff",
     "watermark_font": "GeezaPro-Bold.ttf",
-    "watermark_font_size_percent": 4.5
+    "watermark_font_size_percent": 4.5,
+    "max_font_size_percent": 15.0
   },
   "DOKTORSPIELFAKTEN": {
     "watermark_text": "DOKTORSPIELFAKTEN",
-    "text_color": "#ff72bd",
+    "text_color": "#FF7ABD",
     "logo_file": "static/logos/DOKTORSPIELFAKTEN.png",
     "watermark_color": "#ff69b4",
     "opacity": 0.72,
@@ -105,6 +110,8 @@
     "watermark_margin_bottom": 58,
     "watermark_font_color": "#ffffff",
     "watermark_font": "Roboto-ExtraBold.ttf",
-    "watermark_font_size_percent": 4.5
+    "watermark_font_size_percent": 4.5,
+    "max_font_size_mode": "pixel",
+    "max_font_size_value": 60.0
   }
 }

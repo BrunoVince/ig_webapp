@@ -192,7 +192,14 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
         for paragraph_lines in lines_per_paragraph
     ]
     font_size_min = 10
-    font_size_max = int(width * 0.15)
+    # Flexible maximale Schriftgröße: Prozent oder Pixel
+    if layout.get('max_font_size_mode', 'percent') == 'pixel':
+        font_size_max = int(layout.get('max_font_size_value', 162))  # Default: 162px
+    else:
+        font_size_max = int(width * float(layout.get('max_font_size_value', 15.0)) / 100)
+    # Optional: Absolute Obergrenze (z.B. nie größer als 15% der Breite)
+    # font_size_max = min(font_size_max, int(width * 0.15))
+    font_size_max = min(font_size_max, int(width * 0.15))
     optimal_font = None
     optimal_lines = None
     optimal_line_height = None
@@ -440,6 +447,8 @@ def edit_layout(layout_key):
         watermark_font_color = request.form.get('watermark_font_color', '#ffffff')
         watermark_font = request.form.get('watermark_font', 'GeezaPro-Bold.ttf')
         watermark_font_size_percent = float(request.form.get('watermark_font_size_percent', 4.5))
+        max_font_size_mode = request.form.get('max_font_size_mode', 'percent')
+        max_font_size_value = float(request.form.get('max_font_size_value', 15.0))
         # Logo-Upload
         logo_file = request.files.get('logo_file')
         logo_path = layout.get('logo_file', f'static/logos/{name}.png')
@@ -470,6 +479,8 @@ def edit_layout(layout_key):
             'watermark_font_color': watermark_font_color,
             'watermark_font': watermark_font,
             'watermark_font_size_percent': watermark_font_size_percent,
+            'max_font_size_mode': max_font_size_mode,
+            'max_font_size_value': max_font_size_value,
         }
         if layout_key != name and layout_key in layouts:
             del layouts[layout_key]

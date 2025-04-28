@@ -94,6 +94,22 @@
                     Hinweis: Die Vorschau verwendet eine Standard-Webschrift. Bei der echten Bildgenerierung wird die ausgewählte Schriftart aus dem Server-Fonts-Ordner verwendet.
                 </div>
             </div>
+            <div class="mb-3">
+                <label class="form-label">Maximale Schriftgröße (User-Text)</label>
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="max_font_size_mode" id="max_font_size_mode_percent" value="percent" {% if layout.max_font_size_mode|default('percent') == 'percent' %}checked{% endif %}>
+                        <label class="form-check-label" for="max_font_size_mode_percent">Prozentual</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="max_font_size_mode" id="max_font_size_mode_pixel" value="pixel" {% if layout.max_font_size_mode == 'pixel' %}checked{% endif %}>
+                        <label class="form-check-label" for="max_font_size_mode_pixel">Fester Pixelwert</label>
+                    </div>
+                    <input type="number" class="form-control" id="max_font_size_value" name="max_font_size_value" min="1" max="500" step="0.1" value="{{ layout.max_font_size_value|default(15.0) }}" style="width:120px;">
+                    <span class="form-text">Standard: 15% = 162px bei 1080x1080</span>
+                </div>
+            </div>
+            <input type="hidden" id="default_img_width" value="1080">
             <script>
             // Vorschau-Logik für Letter-Spacing, Line-Spacing, Schatten
             function updateFontPreview() {
@@ -206,6 +222,30 @@
         syncColorInputs('watermark_color');
         syncColorInputs('shadow_color');
         syncColorInputs('watermark_font_color');
+        </script>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const percentRadio = document.getElementById('max_font_size_mode_percent');
+            const pixelRadio = document.getElementById('max_font_size_mode_pixel');
+            const valueInput = document.getElementById('max_font_size_value');
+            const imgWidth = parseInt(document.getElementById('default_img_width').value, 10);
+
+            let lastMode = percentRadio.checked ? 'percent' : 'pixel';
+
+            function updateValueOnModeSwitch(e) {
+                let val = parseFloat(valueInput.value.replace(',', '.'));
+                if (e.target.value === 'pixel' && lastMode === 'percent') {
+                    // Prozent → Pixel
+                    valueInput.value = Math.round(val * imgWidth / 100);
+                } else if (e.target.value === 'percent' && lastMode === 'pixel') {
+                    // Pixel → Prozent
+                    valueInput.value = (val / imgWidth * 100).toFixed(1);
+                }
+                lastMode = e.target.value;
+            }
+            percentRadio.addEventListener('change', updateValueOnModeSwitch);
+            pixelRadio.addEventListener('change', updateValueOnModeSwitch);
+        });
         </script>
         <button type="submit" class="btn btn-success w-100">Speichern</button>
     </form>
