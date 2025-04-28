@@ -166,6 +166,16 @@
                 <div class="form-text">Steuert den Abstand des Wasserzeichen-Balkens zum unteren Bildrand (in Pixel).</div>
             </div>
             <div class="mb-3">
+                <label for="watermark_bar_width" class="form-label">Balkenbreite (Pixel)</label>
+                <input type="number" class="form-control" id="watermark_bar_width" name="watermark_bar_width" min="0" max="1080" value="{{ layout.watermark_bar_width|default(0) }}">
+                <div class="form-text">Steuert die Breite des Wasserzeichen-Balkens (in Pixel). 0 = automatisch basierend auf Textbreite.</div>
+            </div>
+            <div class="mb-3">
+                <label for="watermark_bar_height" class="form-label">Balkenhöhe (Pixel)</label>
+                <input type="number" class="form-control" id="watermark_bar_height" name="watermark_bar_height" min="0" max="200" value="{{ layout.watermark_bar_height|default(0) }}">
+                <div class="form-text">Steuert die Höhe des Wasserzeichen-Balkens (in Pixel). 0 = automatisch basierend auf Texthöhe.</div>
+            </div>
+            <div class="mb-3">
                 <label for="watermark_font_color" class="form-label">Schriftfarbe (Balken)</label>
                 <div class="d-flex align-items-center gap-2">
                     <input type="color" class="form-control form-control-color" id="watermark_font_color" name="watermark_font_color" value="{{ layout.watermark_font_color|default('#ffffff') }}">

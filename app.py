@@ -179,9 +179,30 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
             watermark_font = ImageFont.load_default()
     watermark_font_color = hex_to_rgb(layout.get('watermark_font_color', '#ffffff'))
     watermark_bbox = draw.textbbox((0, 0), watermark['text'], font=watermark_font)
+    watermark_width = watermark_bbox[2] - watermark_bbox[0]
     watermark_height = watermark_bbox[3] - watermark_bbox[1]
+    watermark_offset_y = watermark_bbox[1]
     padding_y = int(watermark_height * 0.5)
-    bar_height = int(watermark_height + 2 * padding_y)
+    padding_x = int(watermark_width * 0.1)
+    
+    # Balkenhöhe: entweder benutzerdefiniert oder automatisch berechnet
+    watermark_bar_height = int(layout.get('watermark_bar_height', 0))
+    if watermark_bar_height <= 0:
+        # Automatische Berechnung basierend auf Texthöhe
+        bar_height = int(watermark_height + 2 * padding_y)
+    else:
+        # Benutzerdefinierte Höhe
+        bar_height = watermark_bar_height
+    
+    # Balkenbreite: entweder benutzerdefiniert oder automatisch berechnet
+    watermark_bar_width = int(layout.get('watermark_bar_width', 0))
+    if watermark_bar_width <= 0:
+        # Automatische Berechnung basierend auf Textbreite
+        bar_width = int(watermark_width + 2 * padding_x)
+    else:
+        # Benutzerdefinierte Breite
+        bar_width = watermark_bar_width
+    
     reserved_bottom = bar_height + margin // 2
     reserved_top = max(logo_height + 30, 150)
     max_text_height = height - reserved_top - reserved_bottom - margin
@@ -317,21 +338,30 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     watermark_width = watermark_bbox[2] - watermark_bbox[0]
     watermark_height = watermark_bbox[3] - watermark_bbox[1]
     watermark_offset_y = watermark_bbox[1]
-    padding_y = int(watermark_height * 0.5)
-    padding_x = int(watermark_width * 0.1)
-    bar_height = int(watermark_height + 2 * padding_y)
+    
+    # Balkengröße aus der obigen Berechnung verwenden
     background_rect = Image.new('RGBA', (
-        int(watermark_width + 2 * padding_x),
+        bar_width,
         bar_height
     ), watermark['color'])
-    watermark_x = (width - watermark_width) // 2
+    
+    # Balken horizontal zentrieren
+    bar_x = (width - bar_width) // 2
     bar_y = height - watermark_margin_bottom - bar_height // 2
+    
     background_rect_pos = (
-        int(watermark_x - padding_x),
+        bar_x,
         bar_y
     )
+    
     img.paste(background_rect, background_rect_pos, background_rect)
+    
+    # Text horizontal zentrieren im Balken
+    watermark_x = (width - watermark_width) // 2
+    
+    # Text vertikal zentrieren im Balken
     text_y = bar_y + (bar_height - watermark_height) // 2 - watermark_offset_y
+    
     draw.text((watermark_x, text_y), 
               watermark['text'], 
               font=watermark_font, 
@@ -427,9 +457,11 @@ def admin():
 def edit_layout(layout_key):
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
+    
     layouts = load_layouts()
     layout = layouts.get(layout_key, {})
     fonts = get_available_fonts()
+    
     if request.method == 'POST':
         name = request.form['name']
         watermark_text = request.form['watermark_text']
@@ -447,16 +479,19 @@ def edit_layout(layout_key):
         watermark_font_color = request.form.get('watermark_font_color', '#ffffff')
         watermark_font = request.form.get('watermark_font', 'GeezaPro-Bold.ttf')
         watermark_font_size_percent = float(request.form.get('watermark_font_size_percent', 4.5))
+        watermark_bar_width = int(request.form.get('watermark_bar_width', 0))
+        watermark_bar_height = int(request.form.get('watermark_bar_height', 0))
         max_font_size_mode = request.form.get('max_font_size_mode', 'percent')
         max_font_size_value = float(request.form.get('max_font_size_value', 15.0))
-        # Logo-Upload
+        logo_size = int(request.form.get('logo_size', 120))
+        # Ursprüngliche Logo-Upload-Logik wiederherstellen
         logo_file = request.files.get('logo_file')
         logo_path = layout.get('logo_file', f'static/logos/{name}.png')
         if logo_file and logo_file.filename:
             filename = secure_filename(f'{name}.png')
             logo_path = os.path.join(LOGO_FOLDER, filename)
             logo_file.save(logo_path)
-        # Font-Upload
+        # Font-Upload bleibt wie gehabt
         font_file = request.files.get('font_file')
         if font_file and font_file.filename:
             font_filename = secure_filename(font_file.filename)
@@ -479,9 +514,11 @@ def edit_layout(layout_key):
             'watermark_font_color': watermark_font_color,
             'watermark_font': watermark_font,
             'watermark_font_size_percent': watermark_font_size_percent,
+            'watermark_bar_width': watermark_bar_width,
+            'watermark_bar_height': watermark_bar_height,
             'max_font_size_mode': max_font_size_mode,
             'max_font_size_value': max_font_size_value,
-            'logo_size': int(request.form.get('logo_size', 120)),
+            'logo_size': logo_size
         }
         if layout_key != name and layout_key in layouts:
             del layouts[layout_key]
