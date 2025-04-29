@@ -68,6 +68,11 @@
                 <input type="number" class="form-control" id="line_spacing" name="line_spacing" value="{{ layout.line_spacing|default(-11) }}" step="1">
                 <div class="form-text">Negativ = enger, Positiv = weiter. Standard: -11</div>
             </div>
+            <div class="mb-3">
+                <label for="word_spacing" class="form-label">Wortabstand (Word-Spacing)</label>
+                <input type="number" class="form-control" id="word_spacing" name="word_spacing" min="-5" max="50" value="{{ layout.word_spacing|default(0) }}">
+                <div class="form-text">Negativ = enger, Positiv = weiter. Standard: 0</div>
+            </div>
             <!-- Schatten-Konfiguration -->
             <div class="mb-3 row g-2 align-items-end">
                 <div class="col-md-4">
@@ -136,6 +141,9 @@
                 preview.style.letterSpacing = letterSpacing + 'px';
                 preview.style.lineHeight = (1.2 + (parseInt(lineSpacing) / 30)).toString();
                 preview.style.textShadow = `${shadowOffsetX}px ${shadowOffsetY}px 6px ${hexToRgba(shadowColor, shadowOpacity)}`;
+                // Wortabstand berücksichtigen
+                const wordSpacing = document.getElementById('word_spacing').value;
+                preview.style.wordSpacing = wordSpacing + 'px';
             }
             document.getElementById('letter_spacing').addEventListener('input', updateFontPreview);
             document.getElementById('line_spacing').addEventListener('input', updateFontPreview);
@@ -143,6 +151,8 @@
             document.getElementById('shadow_opacity').addEventListener('input', updateFontPreview);
             document.getElementById('shadow_offset_x').addEventListener('input', updateFontPreview);
             document.getElementById('shadow_offset_y').addEventListener('input', updateFontPreview);
+            // Event-Listener für Wortabstand
+            document.getElementById('word_spacing').addEventListener('input', updateFontPreview);
             window.addEventListener('DOMContentLoaded', updateFontPreview);
             </script>
         </div>
@@ -195,6 +205,55 @@
                 <input type="number" class="form-control" id="watermark_font_size_percent" name="watermark_font_size_percent" min="1" max="20" step="0.1" value="{{ layout.watermark_font_size_percent|default(4.5) }}">
                 <div class="form-text">Empfohlen: 4.5</div>
             </div>
+            <div class="mb-3">
+                <label class="form-label">Farbverlauf für Balken</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="watermark_bar_gradient_enabled" name="watermark_bar_gradient_enabled" value="1" {% if layout.watermark_bar_gradient_enabled %}checked{% endif %}>
+                    <label class="form-check-label" for="watermark_bar_gradient_enabled">Farbverlauf aktivieren</label>
+                </div>
+            </div>
+            <div class="mb-3" id="gradient-colors" style="{% if not layout.watermark_bar_gradient_enabled %}display: none;{% endif %}">
+                <label for="watermark_bar_gradient_start" class="form-label">Startfarbe (oben)</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" class="form-control form-control-color" id="watermark_bar_gradient_start" name="watermark_bar_gradient_start" value="{{ layout.watermark_bar_gradient_start|default('#0078ff') }}">
+                    <input type="text" class="form-control" id="watermark_bar_gradient_start_hex" value="{{ layout.watermark_bar_gradient_start|default('#0078ff') }}" maxlength="7" style="width:110px;">
+                </div>
+                <label for="watermark_bar_gradient_end" class="form-label mt-2">Endfarbe (unten)</label>
+                <div class="d-flex align-items-center gap-2">
+                    <input type="color" class="form-control form-control-color" id="watermark_bar_gradient_end" name="watermark_bar_gradient_end" value="{{ layout.watermark_bar_gradient_end|default('#0078ff') }}">
+                    <input type="text" class="form-control" id="watermark_bar_gradient_end_hex" value="{{ layout.watermark_bar_gradient_end|default('#0078ff') }}" maxlength="7" style="width:110px;">
+                </div>
+            </div>
+            <script>
+            // Zeige/Verstecke die Gradient-Farbfelder je nach Switch
+            document.addEventListener('DOMContentLoaded', function() {
+                const gradientSwitch = document.getElementById('watermark_bar_gradient_enabled');
+                const gradientColors = document.getElementById('gradient-colors');
+                function toggleGradientFields() {
+                    gradientColors.style.display = gradientSwitch.checked ? 'block' : 'none';
+                }
+                gradientSwitch.addEventListener('change', toggleGradientFields);
+                toggleGradientFields();
+                // Synchronisiere Color-Picker und Hexfeld für Gradient-Start
+                const gradStart = document.getElementById('watermark_bar_gradient_start');
+                const gradStartHex = document.getElementById('watermark_bar_gradient_start_hex');
+                gradStart.addEventListener('input', () => { gradStartHex.value = gradStart.value; });
+                gradStartHex.addEventListener('input', () => {
+                    if(/^#([0-9A-Fa-f]{6})$/.test(gradStartHex.value)) {
+                        gradStart.value = gradStartHex.value;
+                    }
+                });
+                // Synchronisiere Color-Picker und Hexfeld für Gradient-Ende
+                const gradEnd = document.getElementById('watermark_bar_gradient_end');
+                const gradEndHex = document.getElementById('watermark_bar_gradient_end_hex');
+                gradEnd.addEventListener('input', () => { gradEndHex.value = gradEnd.value; });
+                gradEndHex.addEventListener('input', () => {
+                    if(/^#([0-9A-Fa-f]{6})$/.test(gradEndHex.value)) {
+                        gradEnd.value = gradEndHex.value;
+                    }
+                });
+            });
+            </script>
         </div>
         <!-- Block: Overlay -->
         <div class="mb-4 p-3 border rounded bg-light-subtle">

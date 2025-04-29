@@ -203,8 +203,10 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
         # Benutzerdefinierte Breite
         bar_width = watermark_bar_width
     
-    reserved_bottom = bar_height + margin // 2
-    reserved_top = max(logo_height + 30, 150)
+    # Abstand Text zu Balken: 15px Puffer (vorher 25)
+    reserved_bottom = watermark_margin_bottom + bar_height + 15
+    # Abstand Text zu Logo: 15px unterhalb des Logos (vorher: max(logo_height + 30, 150))
+    reserved_top = max(logo_height + 15, 15)
     max_text_height = height - reserved_top - reserved_bottom - margin
     paragraph_texts = re.split(r'\n\s*\n', text)
     lines_per_paragraph = [p.split('\n') for p in paragraph_texts]
@@ -225,6 +227,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     optimal_lines = None
     optimal_line_height = None
     optimal_paragraph_break = None
+    word_spacing = layout.get('word_spacing', 0)
     while font_size_min <= font_size_max:
         font_size = (font_size_min + font_size_max) // 2
         try:
@@ -245,7 +248,9 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
                         is_last = (i == len(words) - 1)
                         word_with_space = word if is_last else word + ' '
                         word_width = font.getlength(word_with_space)
-                        if word_width > max_text_width:
+                        # Berücksichtige Wortabstand beim Zeilenumbruch
+                        extra_word_spacing = word_spacing if line else 0
+                        if word_width + extra_word_spacing > max_text_width:
                             # Wort ist zu lang, Zeichenweise umbrechen (ohne Leerzeichen)
                             part = ''
                             part_width = 0
@@ -263,10 +268,12 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
                                 line.append((part, seg_color))
                                 current_width = part_width
                         else:
-                            if current_width + word_width > max_text_width and line:
+                            if current_width + word_width + (word_spacing if line else 0) > max_text_width and line:
                                 lines.append(line)
                                 line = []
                                 current_width = 0
+                            if line:
+                                current_width += word_spacing
                             line.append((word_with_space, seg_color))
                             current_width += word_width
                 if line:
@@ -316,7 +323,8 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
             total_text_height += optimal_paragraph_break
         else:
             total_text_height += optimal_line_height
-    y = reserved_top + (max_text_height - total_text_height) // 2
+    # y-Start: Nie näher als reserved_top am oberen Rand, sonst zentriert
+    y = max(reserved_top, reserved_top + (max_text_height - total_text_height) // 2)
     for line in optimal_lines:
         if line is None:
             y += optimal_paragraph_break
@@ -326,24 +334,42 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
             line_width += sum(optimal_font.getlength(c) + letter_spacing for c in word) - (letter_spacing if word else 0)
         x = margin + (max_text_width - line_width) // 2
         shadow_rgba = hex_to_rgb(shadow_color) + (shadow_opacity,)
-        for word, color in line:
+        for w_idx, (word, color) in enumerate(line):
             for i, char in enumerate(word):
                 draw.text((x + shadow_offset_x, y + shadow_offset_y), char, font=optimal_font, fill=shadow_rgba)
                 draw.text((x, y), char, font=optimal_font, fill=color)
                 x += optimal_font.getlength(char)
                 if i < len(word) - 1:
                     x += letter_spacing
+            # Wortabstand nach jedem Wort, außer dem letzten in der Zeile
+            if w_idx < len(line) - 1:
+                x += layout.get('word_spacing', 0)
         y += optimal_line_height + line_spacing
     watermark_bbox = draw.textbbox((0, 0), watermark['text'], font=watermark_font)
     watermark_width = watermark_bbox[2] - watermark_bbox[0]
     watermark_height = watermark_bbox[3] - watermark_bbox[1]
     watermark_offset_y = watermark_bbox[1]
     
-    # Balkengröße aus der obigen Berechnung verwenden
-    background_rect = Image.new('RGBA', (
-        bar_width,
-        bar_height
-    ), watermark['color'])
+    # --- Wasserzeichen-Balken erzeugen ---
+    # Gradient-Logik
+    def hex_to_rgb_tuple(hexcolor):
+        hexcolor = hexcolor.lstrip('#')
+        return tuple(int(hexcolor[i:i+2], 16) for i in (0, 2, 4))
+    def create_vertical_gradient(width, height, color1, color2):
+        base = Image.new('RGB', (width, height), color1)
+        top = Image.new('RGB', (width, height), color2)
+        mask = Image.linear_gradient('L').resize((width, height))
+        return Image.composite(top, base, mask)
+    if layout.get('watermark_bar_gradient_enabled'):
+        color1 = hex_to_rgb_tuple(layout.get('watermark_bar_gradient_start', '#0078ff'))
+        color2 = hex_to_rgb_tuple(layout.get('watermark_bar_gradient_end', '#0078ff'))
+        gradient = create_vertical_gradient(bar_width, bar_height, color1, color2)
+        background_rect = gradient.convert('RGBA')
+    else:
+        background_rect = Image.new('RGBA', (
+            bar_width,
+            bar_height
+        ), watermark['color'])
     
     # Balken horizontal zentrieren
     bar_x = (width - bar_width) // 2
@@ -484,6 +510,10 @@ def edit_layout(layout_key):
         max_font_size_mode = request.form.get('max_font_size_mode', 'percent')
         max_font_size_value = float(request.form.get('max_font_size_value', 15.0))
         logo_size = int(request.form.get('logo_size', 120))
+        word_spacing = int(request.form.get('word_spacing', 0))
+        watermark_bar_gradient_enabled = bool(request.form.get('watermark_bar_gradient_enabled'))
+        watermark_bar_gradient_start = request.form.get('watermark_bar_gradient_start', '#0078ff')
+        watermark_bar_gradient_end = request.form.get('watermark_bar_gradient_end', '#0078ff')
         # Ursprüngliche Logo-Upload-Logik wiederherstellen
         logo_file = request.files.get('logo_file')
         logo_path = layout.get('logo_file', f'static/logos/{name}.png')
@@ -518,7 +548,11 @@ def edit_layout(layout_key):
             'watermark_bar_height': watermark_bar_height,
             'max_font_size_mode': max_font_size_mode,
             'max_font_size_value': max_font_size_value,
-            'logo_size': logo_size
+            'logo_size': logo_size,
+            'word_spacing': word_spacing,
+            'watermark_bar_gradient_enabled': watermark_bar_gradient_enabled,
+            'watermark_bar_gradient_start': watermark_bar_gradient_start,
+            'watermark_bar_gradient_end': watermark_bar_gradient_end
         }
         if layout_key != name and layout_key in layouts:
             del layouts[layout_key]
