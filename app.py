@@ -163,10 +163,12 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     max_text_width = width - 2 * margin
     logo_path = layout["logo_file"]
     logo_size_val = int(layout.get('logo_size', 120))
+    logo_margin_top = int(layout.get('logo_margin_top', 30))
+    logo_margin_left = int(layout.get('logo_margin_left', 30))
     logo_height = 0
     if os.path.exists(logo_path):
         logo = Image.open(logo_path).convert("RGBA").resize((logo_size_val, logo_size_val), Image.LANCZOS)
-        img.paste(logo, (30, 30), logo)
+        img.paste(logo, (logo_margin_left, logo_margin_top), logo)
         logo_height = logo_size_val
     watermark_font_path = os.path.join(FONTS_FOLDER, layout.get('watermark_font', 'GeezaPro-Bold.ttf'))
     watermark_font_size = int(width * float(layout.get('watermark_font_size_percent', 4.5)) / 100)
@@ -206,7 +208,7 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     # Abstand Text zu Balken: 15px Puffer (vorher 25)
     reserved_bottom = watermark_margin_bottom + bar_height + 15
     # Abstand Text zu Logo: 15px unterhalb des Logos (vorher: max(logo_height + 30, 150))
-    reserved_top = max(logo_height + 15, 15)
+    reserved_top = max(logo_margin_top + logo_height + 15, 15)
     max_text_height = height - reserved_top - reserved_bottom - margin
     paragraph_texts = re.split(r'\n\s*\n', text)
     lines_per_paragraph = [p.split('\n') for p in paragraph_texts]
@@ -514,6 +516,8 @@ def edit_layout(layout_key):
         watermark_bar_gradient_enabled = bool(request.form.get('watermark_bar_gradient_enabled'))
         watermark_bar_gradient_start = request.form.get('watermark_bar_gradient_start', '#0078ff')
         watermark_bar_gradient_end = request.form.get('watermark_bar_gradient_end', '#0078ff')
+        logo_margin_top = int(request.form.get('logo_margin_top', 30))
+        logo_margin_left = int(request.form.get('logo_margin_left', 30))
         # Ursprüngliche Logo-Upload-Logik wiederherstellen
         logo_file = request.files.get('logo_file')
         logo_path = layout.get('logo_file', f'static/logos/{name}.png')
@@ -552,7 +556,9 @@ def edit_layout(layout_key):
             'word_spacing': word_spacing,
             'watermark_bar_gradient_enabled': watermark_bar_gradient_enabled,
             'watermark_bar_gradient_start': watermark_bar_gradient_start,
-            'watermark_bar_gradient_end': watermark_bar_gradient_end
+            'watermark_bar_gradient_end': watermark_bar_gradient_end,
+            'logo_margin_top': logo_margin_top,
+            'logo_margin_left': logo_margin_left
         }
         if layout_key != name and layout_key in layouts:
             del layouts[layout_key]

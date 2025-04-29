@@ -39,6 +39,16 @@
                 <input type="number" class="form-control" id="logo_size" name="logo_size" min="20" max="400" value="{{ layout.logo_size|default(120) }}">
                 <div class="form-text">Standard: 120. Gilt für die Kantenlänge (quadratisch).</div>
             </div>
+            <div class="mb-3">
+                <label for="logo_margin_top" class="form-label">Logo-Abstand von oben (Pixel)</label>
+                <input type="number" class="form-control" id="logo_margin_top" name="logo_margin_top" min="0" max="500" value="{{ layout.logo_margin_top|default(30) }}">
+                <div class="form-text">Standard: 30</div>
+            </div>
+            <div class="mb-3">
+                <label for="logo_margin_left" class="form-label">Logo-Abstand von links (Pixel)</label>
+                <input type="number" class="form-control" id="logo_margin_left" name="logo_margin_left" min="0" max="500" value="{{ layout.logo_margin_left|default(30) }}">
+                <div class="form-text">Standard: 30</div>
+            </div>
         </div>
         <!-- Block: Text -->
         <div class="mb-4 p-3 border rounded bg-light-subtle">
