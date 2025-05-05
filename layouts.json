@@ -7,7 +7,7 @@
     "opacity": 0.6,
     "font": "Roboto-ExtraBold.ttf",
     "letter_spacing": 0,
-    "line_spacing": 17,
+    "line_spacing": 7,
     "shadow_color": "#000000",
     "shadow_opacity": 180,
     "shadow_offset_x": 3,
@@ -21,12 +21,13 @@
     "max_font_size_mode": "pixel",
     "max_font_size_value": 60.0,
     "logo_size": 170,
-    "word_spacing": 1,
+    "word_spacing": 0,
     "watermark_bar_gradient_enabled": false,
     "watermark_bar_gradient_start": "#0078ff",
     "watermark_bar_gradient_end": "#0078ff",
     "logo_margin_top": 30,
-    "logo_margin_left": 30
+    "logo_margin_left": 30,
+    "y_correction": -10
   },
   "MADCHENF4KTEN": {
     "watermark_text": "MADCHENF4KTEN",
@@ -152,9 +153,9 @@
     "opacity": 0.72,
     "font": "Roboto-ExtraBold.ttf",
     "letter_spacing": 0,
-    "line_spacing": 7,
+    "line_spacing": 19,
     "shadow_color": "#000000",
-    "shadow_opacity": 190,
+    "shadow_opacity": 180,
     "shadow_offset_x": 3,
     "shadow_offset_y": 3,
     "watermark_margin_bottom": 75,
@@ -171,6 +172,7 @@
     "watermark_bar_gradient_start": "#f266cd",
     "watermark_bar_gradient_end": "#f383d3",
     "logo_margin_top": 48,
-    "logo_margin_left": 48
+    "logo_margin_left": 48,
+    "y_correction": -20
   }
 }
