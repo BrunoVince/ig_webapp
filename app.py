@@ -87,15 +87,33 @@ def clean_text(text):
 
 pattern_color = re.compile(r'<(.*?)>')
 def parse_colored_segments(text, color):
+    # Debug: Eingabezeile protokollieren
+    print(f"Parsing input line: '{text}'")
+    
+    # Verbesserte Segmentierung für farbige Texte
     result = []
     last = 0
     for match in pattern_color.finditer(text):
+        # Text vor der Farbmarkierung (weiß)
         if match.start() > last:
             result.append((text[last:match.start()], (255,255,255)))
+        
+        # Farbmarkierter Text (in Layout-Farbe)
         result.append((match.group(1), color))
         last = match.end()
+    
+    # Text nach der letzten Farbmarkierung (weiß)
     if last < len(text):
         result.append((text[last:], (255,255,255)))
+    
+    # Debug: Zeige alle extrahierten Segmente
+    print(f"Parsed segments: {result}")
+    
+    # Detaillierte Segment-Info
+    for i, (segment, seg_color) in enumerate(result):
+        color_name = "FARBIG" if seg_color == color else "weiß"
+        print(f"  Segment {i+1}: '{segment}' ({color_name}, Länge: {len(segment)})")
+    
     return result
 
 def get_available_fonts():
@@ -187,35 +205,50 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     padding_y = int(watermark_height * 0.5)
     padding_x = int(watermark_width * 0.1)
     
-    # Balkenhöhe: entweder benutzerdefiniert oder automatisch berechnet
-    watermark_bar_height = int(layout.get('watermark_bar_height', 0))
-    if watermark_bar_height <= 0:
-        # Automatische Berechnung basierend auf Texthöhe
-        bar_height = int(watermark_height + 2 * padding_y)
-    else:
-        # Benutzerdefinierte Höhe
-        bar_height = watermark_bar_height
+    # Verfügbarer Bereich für Text (mit festen Margins)
+    margin_top = 240
+    margin_bottom = 240
+    text_area_height = height - margin_top - margin_bottom  # 600px (1080px - 2 * 240px = 600px)
     
-    # Balkenbreite: entweder benutzerdefiniert oder automatisch berechnet
-    watermark_bar_width = int(layout.get('watermark_bar_width', 0))
-    if watermark_bar_width <= 0:
-        # Automatische Berechnung basierend auf Textbreite
-        bar_width = int(watermark_width + 2 * padding_x)
-    else:
-        # Benutzerdefinierte Breite
-        bar_width = watermark_bar_width
-    
-    # Abstand Text zu Balken: 15px Puffer (vorher 25)
-    reserved_bottom = watermark_margin_bottom + bar_height + 15
-    # Abstand Text zu Logo: 15px unterhalb des Logos (vorher: max(logo_height + 30, 150))
-    reserved_top = max(logo_margin_top + logo_height + 15, 15)
-    max_text_height = height - reserved_top - reserved_bottom - margin
+    # Text in Absätze aufteilen
     paragraph_texts = re.split(r'\n\s*\n', text)
+    print(f"Erkannte Absätze: {len(paragraph_texts)}")
+    for i, p in enumerate(paragraph_texts):
+        print(f"Absatz {i+1}: '{p}'")
+
     lines_per_paragraph = [p.split('\n') for p in paragraph_texts]
+    print(f"Zeilen pro Absatz: {[len(lines) for lines in lines_per_paragraph]}")
+    for i, para_lines in enumerate(lines_per_paragraph):
+        print(f"Absatz {i+1} mit {len(para_lines)} Zeilen:")
+        for j, line in enumerate(para_lines):
+            print(f"  Zeile {j+1}: '{line}'")
+
     colored_paragraphs = [
         [parse_colored_segments(line, text_color) for line in paragraph_lines]
         for paragraph_lines in lines_per_paragraph
     ]
+    
+    # Debug: Analysiere die Textsegmente
+    print("\nFarbsegment-Analyse:")
+    for i, paragraph in enumerate(colored_paragraphs):
+        print(f"Absatz {i+1}:")
+        for j, line in enumerate(paragraph):
+            print(f"  Zeile {j+1} mit {len(line)} Segmenten:")
+            for k, (seg_text, seg_color) in enumerate(line):
+                if seg_color == text_color:
+                    color_desc = "FARBIG"
+                else:
+                    color_desc = "weiß"
+                print(f"    Segment {k+1}: '{seg_text}' ({color_desc})")
+    
+    # Sammle alle Zeilen mit Farbwechseln
+    print("\nZeilen mit Farbwechseln:")
+    for i, paragraph in enumerate(colored_paragraphs):
+        for j, line in enumerate(paragraph):
+            if len(line) > 1:  # Mehr als ein Segment = Farbwechsel
+                print(f"  Absatz {i+1}, Zeile {j+1} hat {len(line)} Farbsegmente")
+    
+    # Schriftgrößenberechnung
     font_size_min = 10
     # Flexible maximale Schriftgröße: Prozent oder Pixel
     if layout.get('max_font_size_mode', 'percent') == 'pixel':
@@ -223,13 +256,13 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
     else:
         font_size_max = int(width * float(layout.get('max_font_size_value', 15.0)) / 100)
     # Optional: Absolute Obergrenze (z.B. nie größer als 15% der Breite)
-    # font_size_max = min(font_size_max, int(width * 0.15))
     font_size_max = min(font_size_max, int(width * 0.15))
     optimal_font = None
     optimal_lines = None
     optimal_line_height = None
     optimal_paragraph_break = None
     word_spacing = layout.get('word_spacing', 0)
+    
     while font_size_min <= font_size_max:
         font_size = (font_size_min + font_size_max) // 2
         try:
@@ -239,59 +272,144 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
                 font = ImageFont.truetype("Arial.ttf", font_size)
             except IOError:
                 font = ImageFont.load_default()
+                
+        # Berechne Textumbruch mit aktueller Schriftgröße
         lines = []
-        for paragraph in colored_paragraphs:
-            for segs in paragraph:
-                line = []
-                current_width = 0
-                for seg_text, seg_color in segs:
+        all_segments = []
+        
+        # Sammle zunächst alle Segmente aus allen Absätzen in der richtigen Reihenfolge
+        for p_idx, paragraph in enumerate(colored_paragraphs):
+            paragraph_segments = []
+            for line in paragraph:
+                for seg_text, seg_color in line:
                     words = seg_text.split(' ')
                     for i, word in enumerate(words):
                         is_last = (i == len(words) - 1)
                         word_with_space = word if is_last else word + ' '
-                        word_width = font.getlength(word_with_space)
-                        # Berücksichtige Wortabstand beim Zeilenumbruch
-                        extra_word_spacing = word_spacing if line else 0
-                        if word_width + extra_word_spacing > max_text_width:
-                            # Wort ist zu lang, Zeichenweise umbrechen (ohne Leerzeichen)
+                        paragraph_segments.append((word_with_space, seg_color, p_idx))
+            all_segments.append(paragraph_segments)
+            
+        # Führe den Textumbruch für jeden Absatz durch
+        for p_idx, paragraph_segments in enumerate(all_segments):
+            line = []
+            current_width = 0
+            
+            # Debug-Info zum Absatz
+            print(f"\nVerarbeite Absatz {p_idx+1} mit {len(paragraph_segments)} Segmenten:")
+            
+            for word_with_space, seg_color, orig_p_idx in paragraph_segments:
+                # Debug-Info zum aktuellen Wort
+                color_name = "FARBIG" if seg_color == text_color else "weiß"
+                print(f"  Wort: '{word_with_space.strip()}' ({color_name})")
+                
+                word_width = font.getlength(word_with_space)
+                
+                # Prüfe, ob das Wort zu lang für eine Zeile ist
+                if word_width > max_text_width:
+                    # Füge die aktuelle Zeile hinzu, falls nicht leer
+                    if line:
+                        lines.append(line)
+                        line = []
+                        current_width = 0
+                    
+                    # Zeichenweiser Umbruch für zu lange Wörter
+                    word = word_with_space.rstrip()  # Entferne ggf. angehängtes Leerzeichen
+                    part = ''
+                    part_width = 0
+                    
+                    for char in word:
+                        char_width = font.getlength(char)
+                        if part and part_width + char_width > max_text_width:
+                            # Teil zu lang, füge als Zeile hinzu und starte neu
+                            line.append((part, seg_color))
+                            lines.append(line)
+                            line = []
                             part = ''
                             part_width = 0
-                            for char in word:
-                                char_width = font.getlength(char)
-                                if part and part_width + char_width > max_text_width:
-                                    line.append((part, seg_color))
-                                    lines.append(line)
-                                    line = []
-                                    part = ''
-                                    part_width = 0
-                                part += char
-                                part_width += char_width
-                            if part:
-                                line.append((part, seg_color))
-                                current_width = part_width
-                        else:
-                            if current_width + word_width + (word_spacing if line else 0) > max_text_width and line:
-                                lines.append(line)
-                                line = []
-                                current_width = 0
-                            if line:
-                                current_width += word_spacing
-                            line.append((word_with_space, seg_color))
-                            current_width += word_width
-                if line:
-                    lines.append(line)
-            lines.append(None)
+                        
+                        part += char
+                        part_width += char_width
+                    
+                    # Restlichen Teil hinzufügen
+                    if part:
+                        line.append((part, seg_color))
+                        current_width = part_width
+                        
+                    # Füge ggf. das Leerzeichen hinzu
+                    if word_with_space.endswith(' '):
+                        current_width += font.getlength(' ')
+                else:
+                    # Normaler Fall: Prüfe, ob das Wort in die aktuelle Zeile passt
+                    new_width = current_width
+                    if line:  # Wortabstand nur, wenn bereits Wörter in der Zeile sind
+                        new_width += word_spacing
+                    new_width += word_width
+                    
+                    if new_width > max_text_width and line:
+                        # Nicht genug Platz, starte neue Zeile
+                        lines.append(line)
+                        line = [(word_with_space, seg_color)]
+                        current_width = word_width
+                    else:
+                        # Genug Platz, füge zur aktuellen Zeile hinzu
+                        if line:
+                            current_width += word_spacing
+                        line.append((word_with_space, seg_color))
+                        current_width += word_width
+            
+            # Letzte Zeile des Absatzes hinzufügen
+            if line:
+                lines.append(line)
+            
+            # Absatzende markieren, aber nur, wenn nicht der letzte Absatz
+            if p_idx < len(all_segments) - 1:
+                lines.append(None)
+        
+        # Debug: Analysiere die umgebrochenen Zeilen und deren Farben
+        print("\nUmgebrochene Zeilen mit Farbinformationen:")
+        for i, line in enumerate(lines):
+            if line is None:
+                print(f"  Zeile {i+1}: [Absatzumbruch]")
+            else:
+                line_str = ""
+                has_color = False
+                for word, color in line:
+                    color_name = "FARBIG" if color == text_color else "weiß"
+                    line_str += f"[{word.strip()}:{color_name}] "
+                    if color == text_color:
+                        has_color = True
+                print(f"  Zeile {i+1}: {line_str}")
+                print(f"    Hat farbige Segmente: {has_color}")
+                
+        # Letztes Absatzende entfernen, falls vorhanden
         if lines and lines[-1] is None:
             lines.pop()
+        
+        # Berechne die tatsächliche Höhe mit Zeilenabständen
         line_height = font.getbbox('Hg')[3] - font.getbbox('Hg')[1]
         paragraph_break = int(line_height * 1.5)
-        total_text_height = 0
+        
+        # Berechne die Gesamthöhe inkl. aller Abstände
+        total_height = 0
+        current_paragraph_lines = 0
         for l in lines:
             if l is None:
-                total_text_height += paragraph_break
+                total_height += paragraph_break
+                if current_paragraph_lines > 1:
+                    total_height -= line_spacing
+                current_paragraph_lines = 0
             else:
-                total_text_height += line_height
-        if total_text_height <= max_text_height:
+                total_height += line_height
+                if current_paragraph_lines > 0:
+                    total_height += line_spacing
+                current_paragraph_lines += 1
+        
+        # Ziehe den letzten Zeilenabstand ab, falls nötig
+        if current_paragraph_lines > 1:
+            total_height -= line_spacing
+            
+        # Prüfe, ob der Text in den verfügbaren Bereich passt
+        if total_height <= text_area_height:
             optimal_font = font
             optimal_lines = lines
             optimal_line_height = line_height
@@ -320,68 +438,204 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
         optimal_line_height = optimal_font.getbbox('Hg')[3] - optimal_font.getbbox('Hg')[1]
         optimal_paragraph_break = int(optimal_line_height * 1.5)
     total_text_height = 0
-    for l in optimal_lines:
-        if l is None:
-            total_text_height += optimal_paragraph_break
-        else:
-            total_text_height += optimal_line_height
-    # y-Start: Nie näher als reserved_top am oberen Rand, sonst zentriert
-    y = max(reserved_top, reserved_top + (max_text_height - total_text_height) // 2)
+    num_lines = len([l for l in optimal_lines if l is not None])
+    num_paragraphs = len([l for l in optimal_lines if l is None]) + 1
+    
+    # Berechne die Gesamthöhe mit korrekter Berücksichtigung von:
+    # - Zeilenhöhen
+    # - Zeilenabständen
+    # - Absatzabständen
+    
+    # Flache Liste aller normalen Textzeilen (keine Absatzumbrüche)
+    rendering_lines = []
     for line in optimal_lines:
-        if line is None:
-            y += optimal_paragraph_break
-            continue
-        line_width = 0
-        for word, _ in line:
-            line_width += sum(optimal_font.getlength(c) + letter_spacing for c in word) - (letter_spacing if word else 0)
+        if line is not None:  # Ignoriere Absatzumbrüche
+            rendering_lines.append(line)
+    
+    # Ermittle Absatzgrenzen
+    absatz_beginne = [0]  # Erste Zeile beginnt immer einen Absatz
+    absatz_enden = []
+    
+    # Durchlaufe original Zeilen und ermittle Absatzgrenzen
+    line_idx = 0
+    for i, line in enumerate(optimal_lines):
+        if line is None:  # Absatzende
+            absatz_enden.append(line_idx - 1)  # Ende des vorherigen Absatzes
+            if i+1 < len(optimal_lines) and optimal_lines[i+1] is not None:
+                absatz_beginne.append(line_idx)  # Beginn des nächsten Absatzes
+        else:
+            line_idx += 1
+    
+    # Letzter Absatz endet bei der letzten Zeile
+    if rendering_lines:
+        absatz_enden.append(len(rendering_lines) - 1)
+    
+    # Debug: Zeige Absatzgrenzen
+    print(f"Absatzgrenzen - Beginne: {absatz_beginne}, Enden: {absatz_enden}")
+    
+    # Für jede Zeile speichern, ob sie einen Absatz beginnt oder innerhalb eines Absatzes ist
+    ist_absatz_beginn = [False] * len(rendering_lines)
+    for beginn in absatz_beginne:
+        if beginn < len(rendering_lines):
+            ist_absatz_beginn[beginn] = True
+    
+    # Für jede Zeile speichern, ob sie einen Absatz beendet
+    ist_absatz_ende = [False] * len(rendering_lines)
+    for ende in absatz_enden:
+        if ende < len(rendering_lines):
+            ist_absatz_ende[ende] = True
+    
+    # Berechne die Gesamthöhe des Textes ohne Zeilenabstände
+    base_height = len(rendering_lines) * optimal_line_height
+    
+    # Füge Zeilenabstände hinzu
+    zeilenabstand_summe = 0
+    absatzabstand_summe = 0
+    
+    for i in range(len(rendering_lines) - 1):  # Für alle Zeilen außer der letzten
+        if ist_absatz_ende[i]:
+            # Nach einem Absatzende folgt ein Absatzabstand
+            absatzabstand_summe += optimal_paragraph_break
+        else:
+            # Innerhalb eines Absatzes folgt ein Zeilenabstand
+            zeilenabstand_summe += line_spacing
+    
+    total_text_height = base_height + zeilenabstand_summe + absatzabstand_summe
+    
+    # Debug-Ausgaben
+    print(f"Anzahl Zeilen: {len(rendering_lines)}")
+    print(f"Zeilenhöhe (Basis): {optimal_line_height}px")
+    print(f"Basis-Höhe (ohne Abstände): {base_height}px")
+    print(f"Zeilenabstand: {line_spacing}px, Summe: {zeilenabstand_summe}px")
+    print(f"Absatzabstand: {optimal_paragraph_break}px, Summe: {absatzabstand_summe}px")
+    print(f"Gesamttexthöhe: {total_text_height}px")
+    print(f"Verfügbare Höhe: {text_area_height}px")
+    
+    # Zentrierung im verfügbaren Bereich
+    if total_text_height <= text_area_height:
+        # Text passt in verfügbaren Bereich - zentriere ihn
+        text_area_center = margin_top + (text_area_height // 2)  # = 540px
+        y = text_area_center - (total_text_height // 2)
+    else:
+        # Text ist zu groß - starte bei margin_top
+        y = margin_top
+    
+    # Font-Baseline-Korrektur: Ermöglicht eine manuelle Anpassung der Textposition
+    y_correction = int(layout.get('y_correction', 0))  # Neue Layout-Einstellung
+    y += y_correction  # Korrektur anwenden
+    
+    # Rendering des Texts - mit genau definierten Abständen
+    current_y = y
+    
+    # Zusätzliche Debug-Ausgabe für Renderingprozess
+    print("\nRendering-Prozess (präzise):")
+    
+    for i, line in enumerate(rendering_lines):
+        # Debug-Ausgabe für aktuelle Zeile
+        debug_line = " ".join([f"{word.strip()}" for word, _ in line])
+        print(f"  Zeile {i+1}: '{debug_line}' bei Position y={current_y}px")
+        print(f"    Absatzbeginn: {ist_absatz_beginn[i]}, Absatzende: {ist_absatz_ende[i]}")
+        
+        # Rendere die Zeile
+        line_width = sum(optimal_font.getlength(word) + (len(word) - 1) * letter_spacing for word, _ in line)
+        if len(line) > 1:
+            line_width += (len(line) - 1) * word_spacing
+            
         x = margin + (max_text_width - line_width) // 2
-        shadow_rgba = hex_to_rgb(shadow_color) + (shadow_opacity,)
+        
+        # Rendere jedes Wort der Zeile
         for w_idx, (word, color) in enumerate(line):
-            for i, char in enumerate(word):
-                draw.text((x + shadow_offset_x, y + shadow_offset_y), char, font=optimal_font, fill=shadow_rgba)
-                draw.text((x, y), char, font=optimal_font, fill=color)
+            # Rendere das Wort mit Schatten
+            shadow_rgba = hex_to_rgb(shadow_color) + (shadow_opacity,)
+            for j, char in enumerate(word):
+                draw.text((x + shadow_offset_x, current_y + shadow_offset_y), char, font=optimal_font, fill=shadow_rgba)
+                draw.text((x, current_y), char, font=optimal_font, fill=color)
                 x += optimal_font.getlength(char)
-                if i < len(word) - 1:
+                if j < len(word) - 1:
                     x += letter_spacing
-            # Wortabstand nach jedem Wort, außer dem letzten in der Zeile
             if w_idx < len(line) - 1:
-                x += layout.get('word_spacing', 0)
-        y += optimal_line_height + line_spacing
+                x += word_spacing
+        
+        # Zeilenhöhe immer hinzufügen
+        current_y += optimal_line_height
+        print(f"    Zeilenhöhe hinzugefügt: {optimal_line_height}px -> neue y={current_y}px")
+        
+        # Prüfe, ob nach dieser Zeile ein Abstand hinzugefügt werden muss
+        if i < len(rendering_lines) - 1:  # Nicht die letzte Zeile
+            if ist_absatz_ende[i]:
+                # Absatzabstand hinzufügen
+                current_y += optimal_paragraph_break
+                print(f"    Absatzabstand hinzugefügt: {optimal_paragraph_break}px -> neue y={current_y}px")
+            else:
+                # Normaler Zeilenabstand
+                current_y += line_spacing
+                print(f"    Zeilenabstand hinzugefügt: {line_spacing}px -> neue y={current_y}px")
+    
+    # Debug-Ausgaben für die Abstände
+    print(f"Start-Y-Position: {y}px (inkl. y_correction: {y_correction}px)")
+    print(f"End-Y-Position: {current_y}px")
+    print(f"Tatsächliche Texthöhe: {current_y - y}px")
+    print(f"Berechnete Texthöhe: {total_text_height}px")
+    print(f"Abstand oben: {y}px")
+    print(f"Abstand unten: {height - current_y}px")
+    print(f"Verhältnis unten/oben: {(height - current_y) / y:.2f}")
+    print(f"Ideales Verhältnis: 1.0 (gleiche Abstände)")
+    
+    # Empfehlung für y_correction
+    if abs((height - current_y) / y - 1.0) > 0.1:  # Mehr als 10% Unterschied
+        empfohlene_korrektur = int((y - (height - current_y)) / 2)
+        print(f"Empfohlene y_correction: {empfohlene_korrektur}px")
+    
     watermark_bbox = draw.textbbox((0, 0), watermark['text'], font=watermark_font)
     watermark_width = watermark_bbox[2] - watermark_bbox[0]
     watermark_height = watermark_bbox[3] - watermark_bbox[1]
     watermark_offset_y = watermark_bbox[1]
+    
+    # --- Wasserzeichen-Balken-Dimensionen ---
+    # Balkenhöhe: entweder benutzerdefiniert oder automatisch berechnet
+    watermark_bar_height = int(layout.get('watermark_bar_height', 0))
+    if watermark_bar_height <= 0:
+        # Automatische Berechnung basierend auf Texthöhe
+        bar_height = int(watermark_height + 2 * padding_y)
+    else:
+        # Benutzerdefinierte Höhe
+        bar_height = watermark_bar_height
+    
+    # Balkenbreite: entweder benutzerdefiniert oder automatisch berechnet
+    watermark_bar_width = int(layout.get('watermark_bar_width', 0))
+    if watermark_bar_width <= 0:
+        # Automatische Berechnung basierend auf Textbreite
+        bar_width = int(watermark_width + 2 * padding_x)
+    else:
+        # Benutzerdefinierte Breite
+        bar_width = watermark_bar_width
     
     # --- Wasserzeichen-Balken erzeugen ---
     # Gradient-Logik
     def hex_to_rgb_tuple(hexcolor):
         hexcolor = hexcolor.lstrip('#')
         return tuple(int(hexcolor[i:i+2], 16) for i in (0, 2, 4))
+        
     def create_vertical_gradient(width, height, color1, color2):
         base = Image.new('RGB', (width, height), color1)
         top = Image.new('RGB', (width, height), color2)
         mask = Image.linear_gradient('L').resize((width, height))
         return Image.composite(top, base, mask)
+    
+    # Balken erstellen (mit oder ohne Gradient)
     if layout.get('watermark_bar_gradient_enabled'):
         color1 = hex_to_rgb_tuple(layout.get('watermark_bar_gradient_start', '#0078ff'))
         color2 = hex_to_rgb_tuple(layout.get('watermark_bar_gradient_end', '#0078ff'))
         gradient = create_vertical_gradient(bar_width, bar_height, color1, color2)
         background_rect = gradient.convert('RGBA')
     else:
-        background_rect = Image.new('RGBA', (
-            bar_width,
-            bar_height
-        ), watermark['color'])
+        background_rect = Image.new('RGBA', (bar_width, bar_height), watermark['color'])
     
-    # Balken horizontal zentrieren
+    # Balken positionieren
     bar_x = (width - bar_width) // 2
     bar_y = height - watermark_margin_bottom - bar_height // 2
     
-    background_rect_pos = (
-        bar_x,
-        bar_y
-    )
-    
+    background_rect_pos = (bar_x, bar_y)
     img.paste(background_rect, background_rect_pos, background_rect)
     
     # Text horizontal zentrieren im Balken
@@ -518,6 +772,7 @@ def edit_layout(layout_key):
         watermark_bar_gradient_end = request.form.get('watermark_bar_gradient_end', '#0078ff')
         logo_margin_top = int(request.form.get('logo_margin_top', 30))
         logo_margin_left = int(request.form.get('logo_margin_left', 30))
+        y_correction = int(request.form.get('y_correction', 0))
         # Ursprüngliche Logo-Upload-Logik wiederherstellen
         logo_file = request.files.get('logo_file')
         logo_path = layout.get('logo_file', f'static/logos/{name}.png')
@@ -558,7 +813,8 @@ def edit_layout(layout_key):
             'watermark_bar_gradient_start': watermark_bar_gradient_start,
             'watermark_bar_gradient_end': watermark_bar_gradient_end,
             'logo_margin_top': logo_margin_top,
-            'logo_margin_left': logo_margin_left
+            'logo_margin_left': logo_margin_left,
+            'y_correction': y_correction
         }
         if layout_key != name and layout_key in layouts:
             del layouts[layout_key]

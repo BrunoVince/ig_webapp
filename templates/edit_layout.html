@@ -49,6 +49,11 @@
                 <input type="number" class="form-control" id="logo_margin_left" name="logo_margin_left" min="0" max="500" value="{{ layout.logo_margin_left|default(30) }}">
                 <div class="form-text">Standard: 30</div>
             </div>
+            <div class="mb-3">
+                <label for="y_correction" class="form-label">Vertikale Textkorrektur (Pixel)</label>
+                <input type="number" class="form-control" id="y_correction" name="y_correction" min="-100" max="100" value="{{ layout.y_correction|default(0) }}">
+                <div class="form-text">Standard: 0. Negativ = nach oben, Positiv = nach unten. Hilft bei der Feinabstimmung der vertikalen Textposition.</div>
+            </div>
         </div>
         <!-- Block: Text -->
         <div class="mb-4 p-3 border rounded bg-light-subtle">
