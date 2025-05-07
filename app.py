@@ -10,6 +10,7 @@ import datetime
 from flask import Flask, render_template, request, send_file, redirect, url_for, session, flash, jsonify
 from PIL import Image, ImageDraw, ImageFont, ExifTags
 from werkzeug.utils import secure_filename
+import unicodedata
 
 try:
     import google.generativeai as genai
@@ -25,6 +26,7 @@ LAYOUTS_FILE = 'layouts.json'
 LOGO_FOLDER = 'static/logos/'
 FONTS_FOLDER = os.path.join(os.path.dirname(__file__), 'fonts')
 SHOW_CAPTION_FEATURE = True
+ENABLE_BULK_CREATION = False  # Feature-Flag für Massenerstellung
 
 # Layout-Konfiguration (wie im Bot)
 LAYOUTS = {
@@ -82,7 +84,10 @@ def hex_to_rgb(hexcolor):
 
 def clean_text(text):
     text = text.replace('\r', '')
-    allowed = set(string.printable + 'äöüÄÖÜß€–—""\'\'…')
+    # Unicode-Normalisierung (NFKC)
+    text = unicodedata.normalize('NFKC', text)
+    # Erlaube alle druckbaren Zeichen plus deutsche Sonderzeichen und typografische Anführungszeichen
+    allowed = set(string.printable + 'äöüÄÖÜß€–—""\'\'…„“‚‘')
     return ''.join(c for c in text if c in allowed or c == '\n')
 
 pattern_color = re.compile(r'<(.*?)>')
@@ -673,7 +678,7 @@ def index():
         text_value = text
         layout_value = layout
         if not file:
-            return render_template('index.html', layouts=layouts, error="Bitte ein Bild hochladen.", text_value=text_value, layout_value=layout_value, is_admin=is_admin, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value)
+            return render_template('index.html', layouts=layouts, error="Bitte ein Bild hochladen.", text_value=text_value, layout_value=layout_value, is_admin=is_admin, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value, enable_bulk_creation=ENABLE_BULK_CREATION)
         img_path = os.path.join('static', 'tmp_upload.jpg')
         file.save(img_path)
         result_img = create_image_with_text_and_watermark(img_path, text, layout)
@@ -684,8 +689,8 @@ def index():
         # Dateiname mit Layout und Zeitstempel
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         filename = f"{layout}_{timestamp}.jpg"
-        return render_template('index.html', layouts=layouts, result_url=data_url, text_value=text_value, layout_value=layout_value, is_admin=is_admin, filename=filename, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value)
-    return render_template('index.html', layouts=layouts, text_value=text_value, layout_value=layout_value, is_admin=is_admin, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value)
+        return render_template('index.html', layouts=layouts, result_url=data_url, text_value=text_value, layout_value=layout_value, is_admin=is_admin, filename=filename, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value, enable_bulk_creation=ENABLE_BULK_CREATION)
+    return render_template('index.html', layouts=layouts, text_value=text_value, layout_value=layout_value, is_admin=is_admin, show_caption_feature=SHOW_CAPTION_FEATURE, caption_value=caption_value, enable_bulk_creation=ENABLE_BULK_CREATION)
 
 # Dummy-Route für Caption-Generierung (hier später Gemini/OpenAI einbauen)
 @app.route('/generate_caption', methods=['POST'])
@@ -732,7 +737,7 @@ def admin():
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
     layouts = load_layouts()
-    return render_template('admin.html', layouts=layouts, is_admin=True)
+    return render_template('admin.html', layouts=layouts, is_admin=True, enable_bulk_creation=ENABLE_BULK_CREATION)
 
 # --- Layout bearbeiten/hinzufügen ---
 @app.route('/admin/edit/<layout_key>', methods=['GET', 'POST'])
@@ -821,7 +826,7 @@ def edit_layout(layout_key):
         save_layouts(layouts)
         flash('Layout gespeichert.', 'success')
         return redirect(url_for('admin'))
-    return render_template('edit_layout.html', layout=layout, layout_key=layout_key, is_admin=True, fonts=fonts)
+    return render_template('edit_layout.html', layout=layout, layout_key=layout_key, is_admin=True, fonts=fonts, enable_bulk_creation=ENABLE_BULK_CREATION)
 
 # --- Layout löschen ---
 @app.route('/admin/delete/<layout_key>', methods=['POST'])
@@ -858,6 +863,93 @@ def import_layouts():
         flash('Layouts erfolgreich importiert.', 'success')
     except Exception as e:
         flash(f'Fehler beim Import: {e}', 'danger')
+    return redirect(url_for('admin'))
+
+@app.route('/bulk-create', methods=['GET', 'POST'])
+def bulk_create():
+    if not ENABLE_BULK_CREATION:
+        return redirect(url_for('index'))
+        
+    if request.method == 'POST':
+        # Prüfe, ob ein Bild hochgeladen wurde
+        if 'file' not in request.files:
+            flash('Kein Bild ausgewählt', 'danger')
+            return redirect(request.url)
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('Kein Bild ausgewählt', 'danger')
+            return redirect(request.url)
+        
+        # Prüfe, ob Text eingegeben wurde
+        text = request.form.get('text', '').strip()
+        if not text:
+            flash('Kein Text eingegeben', 'danger')
+            return redirect(request.url)
+        
+        # Sichere das hochgeladene Bild
+        filename = secure_filename(file.filename)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        os.makedirs('static/uploads', exist_ok=True)
+        temp_path = os.path.join('static/uploads', f"{timestamp}_{filename}")
+        file.save(temp_path)
+        
+        # Lade alle verfügbaren Layouts
+        layouts = load_layouts()
+        
+        # Generiere für jedes Layout ein Bild
+        generated_images = []
+        
+        for layout_key in layouts.keys():
+            # Generiere ein eindeutiges Bild für jedes Layout
+            result_filename = f"{layout_key}_{timestamp}.jpg"
+            result_path = os.path.join('static/generated', result_filename)
+            
+            try:
+                # Erstelle das Bild mit dem spezifischen Layout
+                result_img = create_image_with_text_and_watermark(temp_path, text, layout_key)
+                os.makedirs('static/generated', exist_ok=True)
+                
+                # BytesIO-Objekt korrekt als Datei speichern
+                with open(result_path, 'wb') as f:
+                    f.write(result_img.getvalue())
+                
+                # Speichere Informationen zum generierten Bild
+                generated_images.append({
+                    'layout': layout_key,
+                    'image_path': result_path,
+                    'image_url': url_for('static', filename=f'generated/{result_filename}')
+                })
+            except Exception as e:
+                flash(f'Fehler bei Layout {layout_key}: {str(e)}', 'danger')
+        
+        # Lösche das temporäre Originalbild
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+        
+        # Zeige die Ergebnisse an
+        return render_template('bulk_results.html', generated_images=generated_images)
+    
+    return render_template('bulk_create.html')
+
+@app.route('/admin/toggle_feature/<feature_name>', methods=['POST'])
+def toggle_feature(feature_name):
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+    
+    global ENABLE_BULK_CREATION, SHOW_CAPTION_FEATURE
+    
+    if feature_name == 'bulk_creation':
+        ENABLE_BULK_CREATION = not ENABLE_BULK_CREATION
+        status = "aktiviert" if ENABLE_BULK_CREATION else "deaktiviert"
+        flash(f'Massenerstellung wurde {status}.', 'success')
+    elif feature_name == 'caption':
+        SHOW_CAPTION_FEATURE = not SHOW_CAPTION_FEATURE
+        status = "aktiviert" if SHOW_CAPTION_FEATURE else "deaktiviert"
+        flash(f'Caption-Feature wurde {status}.', 'success')
+    
     return redirect(url_for('admin'))
 
 if __name__ == '__main__':
