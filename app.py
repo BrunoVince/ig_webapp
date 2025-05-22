@@ -11,6 +11,7 @@ from flask import Flask, render_template, request, send_file, redirect, url_for,
 from PIL import Image, ImageDraw, ImageFont, ExifTags
 from werkzeug.utils import secure_filename
 import unicodedata
+import tempfile
 
 try:
     import google.generativeai as genai
@@ -975,6 +976,38 @@ def toggle_feature(feature_name):
         flash(f'Caption-Feature wurde {status}.', 'success')
     
     return redirect(url_for('admin'))
+
+@app.route('/api/generate-image', methods=['POST'])
+def api_generate_image():
+    image_file = request.files.get('image')
+    text = request.form.get('text')
+    layout = request.form.get('layout')
+    
+    if not image_file or not text or not layout:
+        return jsonify({'error': 'Bild, Text und Layout sind erforderlich!'}), 400
+        
+    # Bild temporär speichern
+    with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
+        image_file.save(tmp.name)
+        tmp.flush()
+        
+        try:
+            # Bild generieren
+            result_img = create_image_with_text_and_watermark(tmp.name, text, layout)
+            
+            # Da result_img bereits ein BytesIO ist, müssen wir es nur zurücksetzen
+            result_img.seek(0)
+            return send_file(
+                result_img,
+                mimetype='image/png',
+                as_attachment=True,
+                download_name='generated_image.png'
+            )
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+        finally:
+            # Temporäre Datei aufräumen
+            os.unlink(tmp.name)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001) 
