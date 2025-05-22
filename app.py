@@ -87,7 +87,7 @@ def clean_text(text):
     # Unicode-Normalisierung (NFKC)
     text = unicodedata.normalize('NFKC', text)
     # Erlaube alle druckbaren Zeichen plus deutsche Sonderzeichen und typografische Anführungszeichen
-    allowed = set(string.printable + 'äöüÄÖÜß€–—""\'\'…„“‚‘')
+    allowed = set(string.printable + 'äöüÄÖÜß€–—""\'\'\…„"‚\'')
     return ''.join(c for c in text if c in allowed or c == '\n')
 
 pattern_color = re.compile(r'<(.*?)>')
@@ -285,16 +285,31 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
         # Sammle zunächst alle Segmente aus allen Absätzen in der richtigen Reihenfolge
         for p_idx, paragraph in enumerate(colored_paragraphs):
             paragraph_segments = []
-            for line in paragraph:
+            
+            # Gehe durch jede Zeile im Absatz
+            for line_idx, line in enumerate(paragraph):
+                line_segments = []
+                
+                # Verarbeite jedes Segment in der Zeile
                 for seg_text, seg_color in line:
                     words = seg_text.split(' ')
                     for i, word in enumerate(words):
                         is_last = (i == len(words) - 1)
                         word_with_space = word if is_last else word + ' '
-                        paragraph_segments.append((word_with_space, seg_color, p_idx))
-            all_segments.append(paragraph_segments)
+                        line_segments.append((word_with_space, seg_color))
+                
+                # Füge alle Segmente dieser Zeile hinzu
+                for segment in line_segments:
+                    paragraph_segments.append(segment)
+                
+                # Füge eine Zeilenumbruch-Markierung nach jeder Zeile außer der letzten ein
+                if line_idx < len(paragraph) - 1:
+                    # Spezielle Markierung für Zeilenumbruch
+                    paragraph_segments.append(("<<<LINE_BREAK>>>", None))
             
-        # Führe den Textumbruch für jeden Absatz durch
+            all_segments.append(paragraph_segments)
+        
+        # Verarbeite alle Segmente im Absatz
         for p_idx, paragraph_segments in enumerate(all_segments):
             line = []
             current_width = 0
@@ -302,7 +317,16 @@ def create_image_with_text_and_watermark(background_path, text, layout_key):
             # Debug-Info zum Absatz
             print(f"\nVerarbeite Absatz {p_idx+1} mit {len(paragraph_segments)} Segmenten:")
             
-            for word_with_space, seg_color, orig_p_idx in paragraph_segments:
+            for word_with_space, seg_color in paragraph_segments:
+                # Prüfe auf spezielle Zeilenumbruch-Markierung
+                if word_with_space == "<<<LINE_BREAK>>>" and seg_color is None:
+                    # Zeilenumbruch: Aktuelle Zeile hinzufügen und neue Zeile beginnen
+                    if line:
+                        lines.append(line)
+                        line = []
+                        current_width = 0
+                    continue
+                
                 # Debug-Info zum aktuellen Wort
                 color_name = "FARBIG" if seg_color == text_color else "weiß"
                 print(f"  Wort: '{word_with_space.strip()}' ({color_name})")
@@ -953,4 +977,4 @@ def toggle_feature(feature_name):
     return redirect(url_for('admin'))
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, port=5001) 
